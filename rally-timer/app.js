@@ -1,8 +1,9 @@
 'use strict';
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'rally-timer-presets';
-const THEME_KEY   = 'rally-timer-theme';
+const STORAGE_KEY     = 'rally-timer-presets';
+const THEME_KEY       = 'rally-timer-theme';
+const DISAMBIG_COLORS = ['#f90', '#0cf', '#f0f', '#0f9'];
 
 // ── State ────────────────────────────────────────────────────────────────────
 const state = {
@@ -652,6 +653,8 @@ function renderRouteEditor() {
   const ptCount = (re.waypoints || []).length;
   const modePathActive = re.mode === 'path' ? 'active' : '';
   const modeCpActive   = re.mode === 'checkpoint' ? 'active' : '';
+  const hasWaypoints   = ptCount > 1;
+  const hasDistances   = state.editing && (state.editing.distances || []).some(d => d > 0);
 
   return `
     <div class="screen route-editor-screen">
@@ -680,11 +683,15 @@ function renderRouteEditor() {
             ? 'Tap sulla mappa per aggiungere punti. Il percorso seguirà le strade.'
             : `Tap per aggiungere i checkpoint dei pressostati (${cpCount}/${nSteps}).`}
         </div>
+        <div id="route-disambig-panel" class="route-disambig-panel" style="display:none"></div>
       </div>
 
       <div class="route-editor-footer">
         <button class="btn-secondary-sm" data-action="route-undo">↩ Annulla</button>
         <button class="btn-secondary-sm" data-action="route-clear">✕ Cancella</button>
+        ${hasWaypoints && hasDistances
+          ? `<button class="btn-secondary-sm accent-btn" data-action="route-auto-cp">📍 Auto CP</button>`
+          : ''}
       </div>
     </div>`;
 }
@@ -700,7 +707,8 @@ function initRouteEditorMap() {
   re.leafletMap = map;
   re.pathLine   = L.polyline(re.waypoints, { color: '#4af', weight: 5, opacity: 0.9 }).addTo(map);
   re.cpMarkers  = re.checkpoints.map((cp, i) => makeCpMarker(cp, i).addTo(map));
-  re.dotMarkers = [];  // only dots for newly tapped points in this session
+  re.dotMarkers   = [];
+  re.disambigLines = [];
 
   if (re.waypoints.length > 1) {
     map.fitBounds(re.pathLine.getBounds(), { padding: [30, 30] });
@@ -730,12 +738,11 @@ function initRouteEditorMap() {
 
 async function addRouteWaypoint(lat, lon) {
   const re = state.routeEditor;
-  if (!re || re.loading) return;
+  if (!re || re.loading || re.pendingDisambig) return;
 
   const newPt = [lat, lon];
 
   if (re.waypoints.length === 0) {
-    // First point — just place it, no OSRM needed
     re.tapBoundaries.push(0);
     re.waypoints.push(newPt);
     re.pathLine.setLatLngs(re.waypoints);
@@ -743,41 +750,123 @@ async function addRouteWaypoint(lat, lon) {
     return;
   }
 
-  const fromPt = re.waypoints[re.waypoints.length - 1];
+  const fromPt   = re.waypoints[re.waypoints.length - 1];
   const boundary = re.waypoints.length;
 
   re.loading = true;
   setRouteLoadingUI(true);
 
   try {
-    const segment = await fetchRoadRoute(fromPt, newPt);
-    // segment = [fromPt, ...roadPoints, newPt]; skip first (already in waypoints)
-    re.tapBoundaries.push(boundary);
-    re.waypoints.push(...segment.slice(1));
-    re.pathLine.setLatLngs(re.waypoints);
-    re.dotMarkers.push(L.circleMarker(newPt, pathDotStyle()).addTo(re.leafletMap));
+    const routes = await fetchRoadRouteWithAlternatives(fromPt, newPt);
+    re.loading = false;
+    setRouteLoadingUI(false);
+    if (routes.length > 1) {
+      showDisambiguationUI(routes, boundary, newPt);
+    } else {
+      commitRouteSegment(routes[0], boundary, newPt);
+    }
   } catch (_) {
-    // Offline or OSRM error — straight line fallback
     re.tapBoundaries.push(boundary);
     re.waypoints.push(newPt);
     re.pathLine.setLatLngs(re.waypoints);
     re.dotMarkers.push(L.circleMarker(newPt, { ...pathDotStyle(), color: '#f90', fillColor: '#f90' }).addTo(re.leafletMap));
     showRouteMsg('Offline: tratto in linea retta', 2000);
-  } finally {
     re.loading = false;
     setRouteLoadingUI(false);
   }
 }
 
-async function fetchRoadRoute(from, to) {
+async function fetchRoadRouteWithAlternatives(from, to) {
   const url = `https://router.project-osrm.org/route/v1/driving/`
     + `${from[1]},${from[0]};${to[1]},${to[0]}`
-    + `?overview=full&geometries=geojson`;
+    + `?overview=full&geometries=geojson&alternatives=true`;
   const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error('OSRM HTTP error');
   const data = await res.json();
   if (data.code !== 'Ok') throw new Error(data.message);
-  return data.routes[0].geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+  return data.routes.map(r => r.geometry.coordinates.map(([lon, lat]) => [lat, lon]));
+}
+
+function commitRouteSegment(segment, boundary, newPt) {
+  const re = state.routeEditor;
+  re.tapBoundaries.push(boundary);
+  re.waypoints.push(...segment.slice(1));
+  re.pathLine.setLatLngs(re.waypoints);
+  re.dotMarkers.push(L.circleMarker(newPt, pathDotStyle()).addTo(re.leafletMap));
+}
+
+function showDisambiguationUI(routes, boundary, newPt) {
+  const re = state.routeEditor;
+  re.pendingDisambig = { routes, boundary, newPt };
+  re.disambigLines = routes.map((pts, i) =>
+    L.polyline(pts, {
+      color:     DISAMBIG_COLORS[i % DISAMBIG_COLORS.length],
+      weight:    5,
+      opacity:   0.85,
+      dashArray: i === 0 ? null : '10,6',
+    }).addTo(re.leafletMap)
+  );
+  const panel = document.getElementById('route-disambig-panel');
+  if (panel) {
+    panel.innerHTML = routes.map((_, i) => `
+      <button class="btn-disambig" style="border-color:${DISAMBIG_COLORS[i % DISAMBIG_COLORS.length]}"
+              data-action="route-select" data-route-idx="${i}">
+        Percorso ${i + 1}
+      </button>`).join('');
+    panel.style.display = 'flex';
+    panel.querySelectorAll('[data-action]').forEach(el => el.addEventListener('click', onAction));
+  }
+}
+
+function selectDisambigRoute(idx) {
+  const re = state.routeEditor;
+  if (!re || !re.pendingDisambig) return;
+  const { routes, boundary, newPt } = re.pendingDisambig;
+  (re.disambigLines || []).forEach(l => re.leafletMap.removeLayer(l));
+  re.disambigLines  = [];
+  re.pendingDisambig = null;
+  const panel = document.getElementById('route-disambig-panel');
+  if (panel) panel.style.display = 'none';
+  commitRouteSegment(routes[idx], boundary, newPt);
+}
+
+function interpolateAlongPolyline(latlngs, targetDistM) {
+  let acc = 0;
+  for (let i = 0; i < latlngs.length - 1; i++) {
+    const d = haversineM(latlngs[i][0], latlngs[i][1], latlngs[i+1][0], latlngs[i+1][1]);
+    if (acc + d >= targetDistM) {
+      const t = d === 0 ? 0 : (targetDistM - acc) / d;
+      return [
+        latlngs[i][0] + t * (latlngs[i+1][0] - latlngs[i][0]),
+        latlngs[i][1] + t * (latlngs[i+1][1] - latlngs[i][1]),
+      ];
+    }
+    acc += d;
+  }
+  return latlngs[latlngs.length - 1];
+}
+
+function autoPlaceCheckpoints() {
+  const re = state.routeEditor;
+  if (!re || re.waypoints.length < 2) {
+    alert('Disegna prima il tracciato sulla mappa.'); return;
+  }
+  const dists = state.editing ? (state.editing.distances || []) : [];
+  if (!dists.some(d => d > 0)) {
+    alert('Inserisci i metri per ciascuno step nella configurazione.'); return;
+  }
+  re.cpMarkers.forEach(m => re.leafletMap.removeLayer(m));
+  re.checkpoints = [];
+  re.cpMarkers   = [];
+  let cum = 0;
+  dists.forEach(d => {
+    cum += d;
+    if (d > 0) {
+      const pt = interpolateAlongPolyline(re.waypoints, cum);
+      re.checkpoints.push(pt);
+      re.cpMarkers.push(makeCpMarker(pt, re.checkpoints.length - 1).addTo(re.leafletMap));
+    }
+  });
 }
 
 function setRouteLoadingUI(loading) {
@@ -963,17 +1052,28 @@ function onAction(e) {
       readStepInputs();
       const existing = state.editing.route || { path: [], checkpoints: [] };
       state.routeEditor = {
-        mode:          'path',
-        waypoints:     existing.path ? existing.path.map(p => [...p]) : [],
-        tapBoundaries: [],      // [] = can't undo the base path; filled as user taps
-        checkpoints:   existing.checkpoints ? existing.checkpoints.map(p => [...p]) : [],
-        loading:       false,
-        leafletMap:    null,
-        pathLine:      null,
-        dotMarkers:    [],
-        cpMarkers:     [],
+        mode:           'path',
+        waypoints:      existing.path        ? existing.path.map(p => [...p])        : [],
+        tapBoundaries:  [],
+        checkpoints:    existing.checkpoints ? existing.checkpoints.map(p => [...p]) : [],
+        loading:        false,
+        pendingDisambig: null,
+        leafletMap:     null,
+        pathLine:       null,
+        dotMarkers:     [],
+        cpMarkers:      [],
       };
       navigate('route-editor');
+      break;
+    }
+    case 'route-select': {
+      const routeIdx = parseInt(e.currentTarget.dataset.routeIdx);
+      selectDisambigRoute(routeIdx);
+      break;
+    }
+    case 'route-auto-cp': {
+      autoPlaceCheckpoints();
+      updateRouteEditorHeader();
       break;
     }
     case 'route-back': {
