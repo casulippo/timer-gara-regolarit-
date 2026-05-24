@@ -42,9 +42,7 @@ let wakeLock = null;
 
 async function acquireWakeLock() {
   try {
-    if ('wakeLock' in navigator) {
-      wakeLock = await navigator.wakeLock.request('screen');
-    }
+    if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen');
   } catch (_) {}
 }
 
@@ -53,13 +51,78 @@ function releaseWakeLock() {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible' && state.screen === 'race') {
-    acquireWakeLock();
-  }
+  if (document.visibilityState === 'visible' && state.screen === 'race') acquireWakeLock();
 });
 
+// ── GPS ───────────────────────────────────────────────────────────────────────
+let gpsWatchId = null;
+
+function haversineM(lat1, lon1, lat2, lon2) {
+  const R  = 6371000;
+  const f1 = lat1 * Math.PI / 180, f2 = lat2 * Math.PI / 180;
+  const df = (lat2 - lat1) * Math.PI / 180;
+  const dl = (lon2 - lon1) * Math.PI / 180;
+  const a  = Math.sin(df / 2) ** 2 + Math.cos(f1) * Math.cos(f2) * Math.sin(dl / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function startGpsTracking() {
+  if (!('geolocation' in navigator)) {
+    state.race.gps.error = 'GPS non disponibile su questo dispositivo.';
+    return;
+  }
+  gpsWatchId = navigator.geolocation.watchPosition(
+    onGpsUpdate,
+    onGpsError,
+    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+  );
+}
+
+function stopGpsTracking() {
+  if (gpsWatchId !== null) {
+    navigator.geolocation.clearWatch(gpsWatchId);
+    gpsWatchId = null;
+  }
+}
+
+function onGpsUpdate(pos) {
+  const gps = state.race && state.race.gps;
+  if (!gps) return;
+
+  const { latitude: lat, longitude: lon, speed, accuracy } = pos.coords;
+  const speedKmh = speed != null ? speed * 3.6 : null;
+
+  if (gps.prevLat !== null && accuracy < 30) {
+    const dist = haversineM(gps.prevLat, gps.prevLon, lat, lon);
+    // Ignore micro-drift when nearly stationary
+    if (speedKmh === null || speedKmh > 2) {
+      gps.sectorDistM += dist;
+      gps.totalDistM  += dist;
+    }
+  }
+
+  gps.prevLat  = lat;
+  gps.prevLon  = lon;
+  gps.speedKmh = speedKmh !== null ? speedKmh : gps.speedKmh;
+  gps.accuracy = accuracy;
+  gps.error    = null;
+}
+
+function onGpsError(err) {
+  if (!state.race) return;
+  const msgs = { 1: 'Permesso GPS negato.', 2: 'Segnale GPS assente.', 3: 'Timeout GPS.' };
+  state.race.gps.error = msgs[err.code] || 'Errore GPS.';
+}
+
+function resetSectorGps() {
+  if (!state.race) return;
+  const gps = state.race.gps;
+  gps.sectorDistM = 0;
+  gps.prevLat     = null;
+  gps.prevLon     = null;
+}
+
 // ── Time Utils ───────────────────────────────────────────────────────────────
-// Parse "MM:SS:CC" or "SS:CC" or "SS" → centesimi integer
 function parseTimeInput(str) {
   const parts = String(str).trim().split(':').map(p => parseInt(p) || 0);
   if (parts.length === 1) return parts[0] * 100;
@@ -67,7 +130,6 @@ function parseTimeInput(str) {
   return parts[0] * 6000 + parts[1] * 100 + parts[2];
 }
 
-// centesimi → "SS.cc" or "M:SS.cc"
 function formatCs(cs) {
   const abs = Math.abs(cs);
   const mm  = Math.floor(abs / 6000);
@@ -79,7 +141,6 @@ function formatCs(cs) {
   return `${s}${ss}.${ccStr}`;
 }
 
-// centesimi → input value "MM:SS:CC" or "SS:CC"
 function csToInput(cs) {
   if (!cs) return '';
   const mm  = Math.floor(cs / 6000);
@@ -90,10 +151,13 @@ function csToInput(cs) {
   return `${ss}:${ccStr}`;
 }
 
-// centesimi delta → "+1.23" / "-0.45"
 function formatDelta(cs) {
   const sign = cs >= 0 ? '+' : '';
   return sign + (cs / 100).toFixed(2);
+}
+
+function presetDistances(preset) {
+  return preset.distances || preset.steps.map(() => 0);
 }
 
 // ── Storage ───────────────────────────────────────────────────────────────────
@@ -134,6 +198,39 @@ function updateRaceDOM() {
   if (sectorEl) sectorEl.textContent = formatDelta(sectorDelta);
   if (totalEl)  totalEl.textContent  = formatDelta(totalDelta);
   if (stepEl)   stepEl.textContent   = `Step ${race.stepIndex + 1} / ${race.preset.steps.length}`;
+
+  // GPS
+  const gps = race.gps;
+  const speedEl    = document.getElementById('race-speed');
+  const distEl     = document.getElementById('race-dist');
+  const distDeltaEl = document.getElementById('race-dist-delta');
+  const gpsErrEl   = document.getElementById('race-gps-error');
+
+  if (gpsErrEl) {
+    gpsErrEl.textContent = gps.error || '';
+    gpsErrEl.style.display = gps.error ? 'block' : 'none';
+  }
+  if (speedEl) {
+    speedEl.textContent = gps.speedKmh != null
+      ? `${Math.round(gps.speedKmh)} km/h` : '-- km/h';
+  }
+
+  const distances  = presetDistances(race.preset);
+  const targetDistM = distances[race.stepIndex] || 0;
+  if (distEl) {
+    distEl.textContent = targetDistM > 0
+      ? `${Math.round(gps.sectorDistM)} / ${targetDistM} m`
+      : `${Math.round(gps.sectorDistM)} m`;
+  }
+  if (distDeltaEl) {
+    if (targetDistM > 0) {
+      const dd = Math.round(gps.sectorDistM - targetDistM);
+      distDeltaEl.textContent = (dd >= 0 ? '+' : '') + dd + ' m';
+      distDeltaEl.className = 'gps-dist-delta ' + (dd > 5 ? 'late' : dd < -5 ? 'early' : 'exact');
+    } else {
+      distDeltaEl.textContent = '';
+    }
+  }
 }
 
 // ── Race Logic ────────────────────────────────────────────────────────────────
@@ -145,10 +242,20 @@ function startRace(preset) {
     stepHistory: [],
     results:     [],
     beepIds:     [],
+    gps: {
+      prevLat:     null,
+      prevLon:     null,
+      sectorDistM: 0,
+      totalDistM:  0,
+      speedKmh:    null,
+      accuracy:    null,
+      error:       null,
+    },
   };
   state.race.stepHistory.push(state.race.stepStartMs);
   scheduleBeeps();
   acquireWakeLock();
+  startGpsTracking();
   navigate('race');
   startRaf();
 }
@@ -161,9 +268,7 @@ function scheduleBeeps() {
   const elapsedMs = performance.now() - race.stepStartMs;
   [3000, 2000, 1000].forEach(ms => {
     const delay = targetMs - elapsedMs - ms;
-    if (delay > 0) {
-      race.beepIds.push(setTimeout(() => beep(880, 0.1), delay));
-    }
+    if (delay > 0) race.beepIds.push(setTimeout(() => beep(880, 0.1), delay));
   });
 }
 
@@ -172,14 +277,21 @@ function pressNext() {
   const now  = performance.now();
   const actualCs = Math.round((now - race.stepStartMs) / 10);
   const targetCs = race.preset.steps[race.stepIndex];
+  const distances = presetDistances(race.preset);
 
   race.beepIds.forEach(clearTimeout);
   race.beepIds = [];
-  race.results.push({ targetCs, actualCs });
+  race.results.push({
+    targetCs,
+    actualCs,
+    sectorDistM:  Math.round(race.gps.sectorDistM),
+    targetDistM:  distances[race.stepIndex] || 0,
+  });
 
   const isLast = race.stepIndex >= race.preset.steps.length - 1;
   if (isLast) {
     stopRaf();
+    stopGpsTracking();
     releaseWakeLock();
     navigate('results');
     return;
@@ -188,6 +300,7 @@ function pressNext() {
   race.stepIndex++;
   race.stepStartMs = now;
   race.stepHistory.push(race.stepStartMs);
+  resetSectorGps();
   scheduleBeeps();
   render();
 }
@@ -205,6 +318,7 @@ function pressUndo() {
   race.stepHistory.pop();
   race.stepStartMs = performance.now();
   race.stepHistory.push(race.stepStartMs);
+  resetSectorGps();
   scheduleBeeps();
   render();
 }
@@ -233,16 +347,19 @@ function renderHome() {
   const list = state.presets.length === 0
     ? `<p class="empty">Nessun preset salvato. Creane uno!</p>`
     : state.presets.map((p, i) => {
-        const total = p.steps.reduce((a, b) => a + b, 0);
+        const total    = p.steps.reduce((a, b) => a + b, 0);
+        const dists    = presetDistances(p);
+        const totalDist = dists.reduce((a, b) => a + b, 0);
+        const distLabel = totalDist > 0 ? ` · ${totalDist} m` : '';
         return `
           <div class="preset-card">
             <div class="preset-info">
               <span class="preset-name">${escHtml(p.name)}</span>
-              <span class="preset-steps">${p.steps.length} step &middot; ${formatCs(total)}</span>
+              <span class="preset-steps">${p.steps.length} step · ${formatCs(total)}${distLabel}</span>
             </div>
             <div class="preset-actions">
-              <button class="btn-icon" data-action="share" data-index="${i}" title="Condividi">🔗</button>
-              <button class="btn-icon" data-action="edit"  data-index="${i}" title="Modifica">✏️</button>
+              <button class="btn-icon" data-action="share"  data-index="${i}" title="Condividi">🔗</button>
+              <button class="btn-icon" data-action="edit"   data-index="${i}" title="Modifica">✏️</button>
               <button class="btn-icon" data-action="delete" data-index="${i}" title="Elimina">🗑️</button>
               <button class="btn-start" data-action="start" data-index="${i}" title="Avvia">▶</button>
             </div>
@@ -269,15 +386,22 @@ function renderHome() {
 // ── Config ────────────────────────────────────────────────────────────────────
 function renderConfig() {
   const p = state.editing;
+  const dists = p.distances || p.steps.map(() => 0);
+
   const stepsHtml = p.steps.map((cs, i) => `
     <div class="step-row">
       <label>Step ${i + 1}</label>
-      <input type="text" inputmode="text" class="time-input" data-step="${i}"
-             value="${csToInput(cs)}" placeholder="SS:CC" />
+      <div class="step-inputs">
+        <input type="text" inputmode="text" class="time-input" data-step="${i}"
+               value="${csToInput(cs)}" placeholder="SS:CC" />
+        <input type="number" inputmode="numeric" class="dist-input" data-step="${i}"
+               value="${dists[i] || ''}" placeholder="m" min="0" max="9999" />
+      </div>
       <button class="btn-remove-step" data-step="${i}" title="Rimuovi">✕</button>
     </div>`).join('');
 
   const total = p.steps.reduce((a, b) => a + b, 0);
+  const totalDist = dists.reduce((a, b) => a + (b || 0), 0);
   const addBtn = p.steps.length < 10
     ? `<button class="btn-secondary" data-action="add-step">+ Aggiungi Step</button>` : '';
 
@@ -291,23 +415,32 @@ function renderConfig() {
       <div class="config-name-row">
         <input type="text" id="preset-name" value="${escHtml(p.name)}" placeholder="Nome preset" maxlength="40" />
       </div>
+      <div class="config-col-labels">
+        <span></span><span>Tempo (SS:CC)</span><span>Metri</span><span></span>
+      </div>
       <div class="steps-list">${stepsHtml}</div>
       ${addBtn}
-      <div class="total-row">Totale: <strong>${formatCs(total)}</strong></div>
+      <div class="total-row">
+        Totale: <strong>${formatCs(total)}</strong>
+        ${totalDist > 0 ? `&nbsp;·&nbsp;<strong>${totalDist} m</strong>` : ''}
+      </div>
     </div>`;
 }
 
 // ── Race ──────────────────────────────────────────────────────────────────────
 function renderRace() {
-  const race    = state.race;
-  const isFirst = race.stepIndex === 0 && race.results.length === 0;
-  const isLast  = race.stepIndex >= race.preset.steps.length - 1;
-  const targetCs = race.preset.steps[race.stepIndex];
+  const race      = state.race;
+  const isFirst   = race.stepIndex === 0 && race.results.length === 0;
+  const isLast    = race.stepIndex >= race.preset.steps.length - 1;
+  const targetCs  = race.preset.steps[race.stepIndex];
   const initSector = formatDelta(-targetCs);
 
   const completedTarget = race.preset.steps.slice(0, race.stepIndex).reduce((a, s) => a + s, 0);
   const completedActual = race.results.reduce((a, r) => a + r.actualCs, 0);
   const initTotal = formatDelta((completedActual - targetCs) - completedTarget);
+
+  const distances   = presetDistances(race.preset);
+  const targetDistM = distances[race.stepIndex] || 0;
 
   return `
     <div class="screen race-screen">
@@ -315,6 +448,7 @@ function renderRace() {
         <span id="race-step">Step ${race.stepIndex + 1} / ${race.preset.steps.length}</span>
         <span class="preset-label">${escHtml(race.preset.name)}</span>
       </div>
+
       <div class="race-deltas">
         <div class="race-delta-block">
           <div class="race-delta-sublabel">SETTORE</div>
@@ -326,6 +460,21 @@ function renderRace() {
           <div id="race-delta-total" class="race-delta">${initTotal}</div>
         </div>
       </div>
+
+      <div class="race-gps">
+        <div class="gps-block">
+          <div class="gps-label">VELOCITÀ</div>
+          <div id="race-speed" class="gps-value">-- km/h</div>
+        </div>
+        <div class="gps-divider"></div>
+        <div class="gps-block">
+          <div class="gps-label">DISTANZA</div>
+          <div id="race-dist" class="gps-value">0${targetDistM > 0 ? ' / ' + targetDistM + ' m' : ' m'}</div>
+          <div id="race-dist-delta" class="gps-dist-delta"></div>
+        </div>
+      </div>
+      <div id="race-gps-error" class="gps-error" style="display:none"></div>
+
       <div class="race-buttons">
         <button class="btn-undo" data-action="undo" ${isFirst ? 'disabled' : ''}>◀ UNDO</button>
         <button class="btn-next" data-action="next">${isLast ? '■ FINE' : '▶ AVANTI'}</button>
@@ -336,16 +485,25 @@ function renderRace() {
 // ── Results ───────────────────────────────────────────────────────────────────
 function renderResults() {
   const { results, preset } = state.race;
+  const hasGpsDist = results.some(r => r.targetDistM > 0);
+
   const rows = results.map((r, i) => {
     const d    = r.actualCs - r.targetCs;
     const cls  = d > 0 ? 'late' : d < 0 ? 'early' : 'exact';
     const sign = d >= 0 ? '+' : '';
+    const distCell = hasGpsDist
+      ? `<td class="${r.targetDistM > 0 ? (r.sectorDistM - r.targetDistM > 5 ? 'late' : r.sectorDistM - r.targetDistM < -5 ? 'early' : 'exact') : ''}">${
+          r.targetDistM > 0
+            ? `${r.sectorDistM}/${r.targetDistM}m`
+            : `${r.sectorDistM}m`
+        }</td>` : '';
     return `
       <tr>
         <td>Step ${i + 1}</td>
         <td>${formatCs(r.targetCs)}</td>
         <td>${formatCs(r.actualCs)}</td>
         <td class="${cls}">${sign}${(d / 100).toFixed(2)}s</td>
+        ${distCell}
       </tr>`;
   }).join('');
 
@@ -354,6 +512,9 @@ function renderResults() {
   const totDelta  = totActual - totTarget;
   const totCls    = totDelta > 0 ? 'late' : totDelta < 0 ? 'early' : 'exact';
   const totSign   = totDelta >= 0 ? '+' : '';
+  const totDistCell = hasGpsDist
+    ? `<td>${results.reduce((a, r) => a + r.sectorDistM, 0)}m</td>` : '';
+  const distHeader = hasGpsDist ? '<th>Dist GPS</th>' : '';
 
   return `
     <div class="screen results-screen">
@@ -361,7 +522,7 @@ function renderResults() {
         <h2>Risultati — ${escHtml(preset.name)}</h2>
       </header>
       <table class="results-table">
-        <thead><tr><th>Step</th><th>Target</th><th>Reale</th><th>Delta</th></tr></thead>
+        <thead><tr><th>Step</th><th>Target</th><th>Reale</th><th>Δ Tempo</th>${distHeader}</tr></thead>
         <tbody>${rows}</tbody>
         <tfoot>
           <tr>
@@ -369,6 +530,7 @@ function renderResults() {
             <td>${formatCs(totTarget)}</td>
             <td>${formatCs(totActual)}</td>
             <td class="${totCls}"><strong>${totSign}${(totDelta / 100).toFixed(2)}s</strong></td>
+            ${totDistCell}
           </tr>
         </tfoot>
       </table>
@@ -390,6 +552,15 @@ function bindEvents() {
     });
   });
 
+  document.querySelectorAll('.dist-input').forEach(inp => {
+    inp.addEventListener('blur', e => {
+      const i = parseInt(e.target.dataset.step);
+      if (!state.editing.distances) state.editing.distances = state.editing.steps.map(() => 0);
+      state.editing.distances[i] = parseInt(e.target.value) || 0;
+      updateTotalDisplay();
+    });
+  });
+
   const importInput = document.getElementById('import-file-input');
   if (importInput) {
     importInput.addEventListener('change', e => {
@@ -404,6 +575,7 @@ function bindEvents() {
       if (state.editing.steps.length > 1) {
         readStepInputs();
         state.editing.steps.splice(i, 1);
+        if (state.editing.distances) state.editing.distances.splice(i, 1);
         render();
       }
     });
@@ -412,15 +584,21 @@ function bindEvents() {
 
 function updateTotalDisplay() {
   readStepInputs();
-  const total = state.editing.steps.reduce((a, b) => a + b, 0);
-  const el = document.querySelector('.total-row strong');
-  if (el) el.textContent = formatCs(total);
+  const total     = state.editing.steps.reduce((a, b) => a + b, 0);
+  const totalDist = (state.editing.distances || []).reduce((a, b) => a + (b || 0), 0);
+  const el = document.querySelector('.total-row');
+  if (el) el.innerHTML = `Totale: <strong>${formatCs(total)}</strong>${totalDist > 0 ? ` &nbsp;·&nbsp; <strong>${totalDist} m</strong>` : ''}`;
 }
 
 function readStepInputs() {
   document.querySelectorAll('.time-input').forEach(inp => {
     const i = parseInt(inp.dataset.step);
     if (!isNaN(i)) state.editing.steps[i] = parseTimeInput(inp.value);
+  });
+  if (!state.editing.distances) state.editing.distances = state.editing.steps.map(() => 0);
+  document.querySelectorAll('.dist-input').forEach(inp => {
+    const i = parseInt(inp.dataset.step);
+    if (!isNaN(i)) state.editing.distances[i] = parseInt(inp.value) || 0;
   });
 }
 
@@ -429,7 +607,6 @@ function onAction(e) {
   const idx    = e.currentTarget.dataset.index !== undefined
                    ? parseInt(e.currentTarget.dataset.index) : null;
 
-  // Unlock audio on first gesture
   getAudio();
 
   switch (action) {
@@ -440,13 +617,19 @@ function onAction(e) {
       break;
     }
     case 'new': {
-      state.editing = { name: '', steps: [0], isNew: true };
+      state.editing = { name: '', steps: [0], distances: [0], isNew: true };
       navigate('config');
       break;
     }
     case 'edit': {
       const src = state.presets[idx];
-      state.editing = { ...src, steps: [...src.steps], isNew: false, originalIndex: idx };
+      state.editing = {
+        ...src,
+        steps:     [...src.steps],
+        distances: [...presetDistances(src)],
+        isNew:     false,
+        originalIndex: idx,
+      };
       navigate('config');
       break;
     }
@@ -475,31 +658,22 @@ function onAction(e) {
     case 'add-step': {
       readStepInputs();
       state.editing.steps.push(0);
+      if (!state.editing.distances) state.editing.distances = state.editing.steps.map(() => 0);
+      state.editing.distances.push(0);
       render();
       break;
     }
-    case 'next': {
-      pressNext();
-      break;
-    }
-    case 'undo': {
-      pressUndo();
-      break;
-    }
+    case 'next':  { pressNext();  break; }
+    case 'undo':  { pressUndo();  break; }
     case 'home': {
+      stopGpsTracking();
       state.race = null;
       stopRaf();
       navigate('home');
       break;
     }
-    case 'share': {
-      sharePreset(idx);
-      break;
-    }
-    case 'export-all': {
-      exportAllPresets();
-      break;
-    }
+    case 'share':      { sharePreset(idx);    break; }
+    case 'export-all': { exportAllPresets();  break; }
   }
 }
 
@@ -507,15 +681,19 @@ function saveConfig() {
   readStepInputs();
   const nameEl = document.getElementById('preset-name');
   const name   = nameEl ? nameEl.value.trim() : '';
-  const steps  = state.editing.steps.filter(s => s > 0);
+  const steps  = state.editing.steps.filter((s, i) => s > 0 || (state.editing.distances && state.editing.distances[i] > 0));
+  const validIdx = state.editing.steps.map((s, i) => s > 0 ? i : -1).filter(i => i >= 0);
+  const filteredSteps = validIdx.map(i => state.editing.steps[i]);
+  const filteredDists = validIdx.map(i => (state.editing.distances || [])[i] || 0);
 
   if (!name) { alert('Inserisci un nome per il preset.'); nameEl && nameEl.focus(); return; }
-  if (steps.length === 0) { alert('Aggiungi almeno uno step con tempo maggiore di zero.'); return; }
+  if (filteredSteps.length === 0) { alert('Aggiungi almeno uno step con tempo maggiore di zero.'); return; }
 
   const preset = {
-    id:    state.editing.id || Date.now(),
+    id:        state.editing.id || Date.now(),
     name,
-    steps,
+    steps:     filteredSteps,
+    distances: filteredDists,
   };
 
   if (state.editing.isNew) {
@@ -540,8 +718,9 @@ function escHtml(str) {
 
 // ── Share / Export / Import ───────────────────────────────────────────────────
 function sharePreset(idx) {
-  const { name, steps } = state.presets[idx];
-  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify({ name, steps }))));
+  const { name, steps, distances } = state.presets[idx];
+  const data = { name, steps, distances: distances || steps.map(() => 0) };
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
   const url = `${location.origin}${location.pathname}#share=${encoded}`;
   navigator.clipboard.writeText(url)
     .then(() => alert(`Link copiato negli appunti!\nInvialo all'altro dispositivo.`))
@@ -550,7 +729,7 @@ function sharePreset(idx) {
 
 function exportAllPresets() {
   if (state.presets.length === 0) { alert('Nessun preset da esportare.'); return; }
-  const json = JSON.stringify({ version: 1, presets: state.presets }, null, 2);
+  const json = JSON.stringify({ version: 2, presets: state.presets }, null, 2);
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
   a.download = 'rally-timer-presets.json';
@@ -587,7 +766,12 @@ function mergeImportedPresets(list, label) {
   list.forEach(p => {
     if (!p.name || !Array.isArray(p.steps) || p.steps.length === 0) return;
     const idx = state.presets.findIndex(x => x.name === p.name);
-    const preset = { id: Date.now() + Math.random(), name: p.name, steps: p.steps };
+    const preset = {
+      id:        Date.now() + Math.random(),
+      name:      p.name,
+      steps:     p.steps,
+      distances: p.distances || p.steps.map(() => 0),
+    };
     if (idx >= 0) {
       state.presets[idx] = { ...preset, id: state.presets[idx].id };
     } else {
