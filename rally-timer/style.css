@@ -1,0 +1,418 @@
+/* ── Reset & Base ─────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #111;
+  --bg2: #1e1e1e;
+  --bg3: #2a2a2a;
+  --text: #f0f0f0;
+  --text2: #888;
+  --accent: #f90;
+  --danger: #e55;
+  --success: #4c4;
+  --border: #333;
+  --btn-bg: #2a2a2a;
+  --btn-text: #f0f0f0;
+  --card-bg: #1e1e1e;
+}
+
+body.light {
+  --bg: #f5f5f5;
+  --bg2: #fff;
+  --bg3: #ebebeb;
+  --text: #111;
+  --text2: #666;
+  --border: #ddd;
+  --btn-bg: #e0e0e0;
+  --btn-text: #111;
+  --card-bg: #fff;
+}
+
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  overflow: hidden;
+}
+
+#app {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Screens ──────────────────────────────────────────── */
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  padding: 16px;
+  overflow: hidden;
+}
+
+/* ── Header ──────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0 20px;
+  flex-shrink: 0;
+}
+
+header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+header h2 {
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+
+/* ── Buttons ─────────────────────────────────────────── */
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  color: var(--text);
+  touch-action: manipulation;
+}
+
+.btn-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--btn-bg);
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #111;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 14px 24px;
+  border-radius: 12px;
+  width: 100%;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.btn-secondary {
+  background: var(--bg3);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 10px;
+  width: 100%;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
+/* ── Home Screen ─────────────────────────────────────── */
+.home-screen {
+  gap: 0;
+}
+
+.preset-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 12px;
+}
+
+.empty {
+  color: var(--text2);
+  text-align: center;
+  margin-top: 60px;
+  font-size: 1rem;
+}
+
+.preset-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.preset-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+}
+
+.preset-name {
+  font-size: 1.1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preset-steps {
+  font-size: 0.85rem;
+  color: var(--text2);
+}
+
+.preset-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.btn-start {
+  background: var(--accent);
+  color: #111;
+  font-size: 1.1rem;
+  font-weight: 700;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Config Screen ───────────────────────────────────── */
+.config-screen {
+  gap: 0;
+}
+
+.config-name-row {
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.config-name-row input {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 1.1rem;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.steps-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 8px;
+}
+
+.step-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.step-row label {
+  font-size: 0.9rem;
+  color: var(--text2);
+  width: 52px;
+  flex-shrink: 0;
+}
+
+.time-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 1.1rem;
+  font-family: 'Courier New', monospace;
+  color: var(--text);
+  text-align: center;
+}
+
+.time-input:focus {
+  outline: 2px solid var(--accent);
+  border-color: transparent;
+}
+
+.btn-remove-step {
+  background: var(--bg3);
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  color: var(--danger);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.total-row {
+  margin-top: 12px;
+  text-align: right;
+  font-size: 0.95rem;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+/* ── Race Screen ─────────────────────────────────────── */
+.race-screen {
+  justify-content: space-between;
+  padding: 20px 20px 28px;
+  gap: 0;
+}
+
+.race-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.race-header #race-step {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.preset-label {
+  font-size: 0.9rem;
+  color: var(--text2);
+  text-align: right;
+}
+
+.race-delta-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.race-delta {
+  font-size: clamp(5rem, 20vw, 10rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  font-family: 'Courier New', 'Roboto Mono', monospace;
+  line-height: 1;
+  letter-spacing: -2px;
+  color: var(--text);
+  transition: none;
+}
+
+.race-delta-label {
+  font-size: 1.1rem;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.race-buttons {
+  display: flex;
+  gap: 14px;
+  flex-shrink: 0;
+}
+
+.btn-undo {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  flex: 1;
+  color: var(--text2);
+}
+
+.btn-undo:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-next {
+  background: var(--accent);
+  color: #111;
+  border-radius: 16px;
+  padding: 20px 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+  flex: 2;
+  letter-spacing: 1px;
+}
+
+/* ── Results Screen ──────────────────────────────────── */
+.results-screen {
+  gap: 0;
+}
+
+.results-screen header {
+  padding-bottom: 16px;
+}
+
+.results-table {
+  width: 100%;
+  border-collapse: collapse;
+  flex-shrink: 0;
+  margin-bottom: 16px;
+}
+
+.results-table th {
+  text-align: left;
+  font-size: 0.8rem;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.results-table td {
+  padding: 10px 6px;
+  font-size: 0.95rem;
+  border-bottom: 1px solid var(--border);
+  font-variant-numeric: tabular-nums;
+}
+
+.results-table tfoot td {
+  font-size: 1rem;
+  padding-top: 14px;
+  border-bottom: none;
+}
+
+.late  { color: var(--danger); font-weight: 700; }
+.early { color: var(--success); font-weight: 700; }
+.exact { color: var(--accent); font-weight: 700; }
+
+/* ── Input ───────────────────────────────────────────── */
+input {
+  outline: none;
+}
+
+input:focus {
+  outline: 2px solid var(--accent);
+}
+
+/* ── Scrollbar ───────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
