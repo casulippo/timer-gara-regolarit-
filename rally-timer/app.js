@@ -122,12 +122,18 @@ function updateRaceDOM() {
   const now       = performance.now();
   const elapsedCs = Math.round((now - race.stepStartMs) / 10);
   const targetCs  = race.preset.steps[race.stepIndex];
-  const deltaCs   = elapsedCs - targetCs;
+  const sectorDelta = elapsedCs - targetCs;
 
-  const deltaEl = document.getElementById('race-delta');
-  const stepEl  = document.getElementById('race-step');
-  if (deltaEl) deltaEl.textContent = formatDelta(deltaCs);
-  if (stepEl)  stepEl.textContent  = `Step ${race.stepIndex + 1} / ${race.preset.steps.length}`;
+  const completedActual = race.results.reduce((a, r) => a + r.actualCs, 0);
+  const completedTarget = race.preset.steps.slice(0, race.stepIndex).reduce((a, s) => a + s, 0);
+  const totalDelta = (completedActual + elapsedCs) - (completedTarget + targetCs);
+
+  const sectorEl = document.getElementById('race-delta-sector');
+  const totalEl  = document.getElementById('race-delta-total');
+  const stepEl   = document.getElementById('race-step');
+  if (sectorEl) sectorEl.textContent = formatDelta(sectorDelta);
+  if (totalEl)  totalEl.textContent  = formatDelta(totalDelta);
+  if (stepEl)   stepEl.textContent   = `Step ${race.stepIndex + 1} / ${race.preset.steps.length}`;
 }
 
 // ── Race Logic ────────────────────────────────────────────────────────────────
@@ -286,11 +292,15 @@ function renderConfig() {
 
 // ── Race ──────────────────────────────────────────────────────────────────────
 function renderRace() {
-  const race   = state.race;
+  const race    = state.race;
   const isFirst = race.stepIndex === 0 && race.results.length === 0;
   const isLast  = race.stepIndex >= race.preset.steps.length - 1;
   const targetCs = race.preset.steps[race.stepIndex];
-  const initDelta = formatDelta(-targetCs);
+  const initSector = formatDelta(-targetCs);
+
+  const completedTarget = race.preset.steps.slice(0, race.stepIndex).reduce((a, s) => a + s, 0);
+  const completedActual = race.results.reduce((a, r) => a + r.actualCs, 0);
+  const initTotal = formatDelta((completedActual - targetCs) - completedTarget);
 
   return `
     <div class="screen race-screen">
@@ -298,9 +308,16 @@ function renderRace() {
         <span id="race-step">Step ${race.stepIndex + 1} / ${race.preset.steps.length}</span>
         <span class="preset-label">${escHtml(race.preset.name)}</span>
       </div>
-      <div class="race-delta-wrapper">
-        <div id="race-delta" class="race-delta">${initDelta}</div>
-        <div class="race-delta-label">secondi</div>
+      <div class="race-deltas">
+        <div class="race-delta-block">
+          <div class="race-delta-sublabel">SETTORE</div>
+          <div id="race-delta-sector" class="race-delta">${initSector}</div>
+        </div>
+        <div class="race-delta-divider"></div>
+        <div class="race-delta-block">
+          <div class="race-delta-sublabel">TOTALE</div>
+          <div id="race-delta-total" class="race-delta">${initTotal}</div>
+        </div>
       </div>
       <div class="race-buttons">
         <button class="btn-undo" data-action="undo" ${isFirst ? 'disabled' : ''}>◀ UNDO</button>
