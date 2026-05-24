@@ -6,11 +6,12 @@ const THEME_KEY   = 'rally-timer-theme';
 
 // ── State ────────────────────────────────────────────────────────────────────
 const state = {
-  screen:  'home',
-  theme:   localStorage.getItem(THEME_KEY) || 'dark',
-  presets: JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'),
-  editing: null,
-  race:    null,
+  screen:      'home',
+  theme:       localStorage.getItem(THEME_KEY) || 'dark',
+  presets:     JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'),
+  editing:     null,
+  race:        null,
+  routeEditor: null,
 };
 
 // ── Audio ────────────────────────────────────────────────────────────────────
@@ -303,6 +304,28 @@ function initLeafletMap() {
   race.carMarker  = L.marker([41.9, 12.5], { icon: carIcon }).addTo(map);
   race.leafletMap = map;
 
+  // Draw saved route
+  const route = race.preset.route;
+  if (route && route.path && route.path.length > 1) {
+    L.polyline(route.path, { color: '#4af', weight: 4, opacity: 0.85 }).addTo(map);
+    map.fitBounds(L.polyline(route.path).getBounds(), { padding: [30, 30] });
+    race.mapReady = true;
+  }
+  // Draw checkpoint markers
+  (route && route.checkpoints || []).forEach((cp, i) => {
+    L.circleMarker(cp, {
+      radius: 11,
+      color: '#fff',
+      fillColor: race.results.length > i ? '#666' : '#f90',
+      fillOpacity: 1,
+      weight: 2,
+    }).bindTooltip(String(i + 1), {
+      permanent: true,
+      direction: 'center',
+      className: 'cp-label',
+    }).addTo(map);
+  });
+
   setTimeout(() => map.invalidateSize(), 100);
 }
 
@@ -413,12 +436,14 @@ function render() {
   document.body.className = state.theme;
   const app = document.getElementById('app');
   switch (state.screen) {
-    case 'home':    app.innerHTML = renderHome();    break;
-    case 'config':  app.innerHTML = renderConfig();  break;
-    case 'race':    app.innerHTML = renderRace();    break;
-    case 'results': app.innerHTML = renderResults(); break;
+    case 'home':         app.innerHTML = renderHome();         break;
+    case 'config':       app.innerHTML = renderConfig();       break;
+    case 'route-editor': app.innerHTML = renderRouteEditor();  break;
+    case 'race':         app.innerHTML = renderRace();         break;
+    case 'results':      app.innerHTML = renderResults();      break;
   }
   bindEvents();
+  if (state.screen === 'route-editor') requestAnimationFrame(initRouteEditorMap);
 }
 
 // ── Home ──────────────────────────────────────────────────────────────────────
@@ -504,6 +529,11 @@ function renderConfig() {
         Totale: <strong>${formatCs(total)}</strong>
         ${totalDist > 0 ? `&nbsp;·&nbsp;<strong>${totalDist} m</strong>` : ''}
       </div>
+      <button class="btn-route" data-action="edit-route">
+        🗺️ ${p.route && p.route.path && p.route.path.length > 1
+          ? `Percorso salvato (${p.route.path.length} pt · ${(p.route.checkpoints || []).length} checkpoint)`
+          : 'Disegna Percorso su Mappa'}
+      </button>
     </div>`;
 }
 
@@ -614,6 +644,104 @@ function renderResults() {
     </div>`;
 }
 
+// ── Route Editor ─────────────────────────────────────────────────────────────
+function renderRouteEditor() {
+  const re   = state.routeEditor;
+  const nSteps = state.editing ? state.editing.steps.filter(s => s > 0).length : 0;
+  const cpCount = (re.checkpoints || []).length;
+  const modePathActive = re.mode === 'path' ? 'active' : '';
+  const modeCpActive   = re.mode === 'checkpoint' ? 'active' : '';
+
+  return `
+    <div class="screen route-editor-screen">
+      <div class="route-editor-header">
+        <button class="btn-icon" data-action="route-back">←</button>
+        <div class="route-mode-toggle">
+          <button class="mode-btn ${modePathActive}" data-action="route-mode-path">Tracciato</button>
+          <button class="mode-btn ${modeCpActive}"   data-action="route-mode-checkpoint">
+            Checkpoint${nSteps > 0 ? ` (${cpCount}/${nSteps})` : ''}
+          </button>
+        </div>
+        <button class="btn-icon" data-action="route-save" title="Salva">✓</button>
+      </div>
+      <div id="route-map" class="route-map"></div>
+      <div class="route-editor-footer">
+        <button class="btn-secondary-sm" data-action="route-undo">↩ Annulla ultimo</button>
+        <button class="btn-secondary-sm" data-action="route-clear">✕ Cancella tutto</button>
+      </div>
+    </div>`;
+}
+
+function initRouteEditorMap() {
+  const re    = state.routeEditor;
+  const mapEl = document.getElementById('route-map');
+  if (!re || !mapEl || re.leafletMap) return;
+
+  const map = L.map('route-map', { zoomControl: true, attributionControl: false });
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+  // Start from last known GPS position or Italy center
+  const lastGps = state.routeEditor.lastGps;
+  const center  = lastGps ? lastGps : [41.9, 12.5];
+  const zoom    = lastGps ? 15 : 6;
+  map.setView(center, zoom);
+
+  re.leafletMap    = map;
+  re.pathLine      = L.polyline(re.path, { color: '#4af', weight: 4 }).addTo(map);
+  re.pathDots      = re.path.map(p => L.circleMarker(p, pathDotStyle()).addTo(map));
+  re.cpMarkers     = re.checkpoints.map((cp, i) => makeCpMarker(cp, i).addTo(map));
+
+  if (re.path.length > 1) {
+    map.fitBounds(re.pathLine.getBounds(), { padding: [20, 20] });
+  }
+
+  map.on('click', e => {
+    const { lat, lng } = e.latlng;
+    const re = state.routeEditor;
+    if (re.mode === 'path') {
+      re.path.push([lat, lng]);
+      re.pathLine.addLatLng([lat, lng]);
+      re.pathDots.push(L.circleMarker([lat, lng], pathDotStyle()).addTo(map));
+    } else {
+      const maxCp = state.editing ? state.editing.steps.filter(s => s > 0).length : 10;
+      if (re.checkpoints.length >= maxCp) return;
+      re.checkpoints.push([lat, lng]);
+      re.cpMarkers.push(makeCpMarker([lat, lng], re.checkpoints.length - 1).addTo(map));
+    }
+    updateRouteEditorHeader();
+  });
+
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
+function pathDotStyle() {
+  return { radius: 4, color: '#4af', fillColor: '#4af', fillOpacity: 0.7, weight: 1 };
+}
+
+function makeCpMarker(latlng, idx) {
+  return L.circleMarker(latlng, {
+    radius: 12,
+    color: '#fff',
+    fillColor: '#f90',
+    fillOpacity: 1,
+    weight: 2,
+  }).bindTooltip(String(idx + 1), {
+    permanent: true,
+    direction: 'center',
+    className: 'cp-label',
+    offset: [0, 0],
+  });
+}
+
+function updateRouteEditorHeader() {
+  const re      = state.routeEditor;
+  const nSteps  = state.editing ? state.editing.steps.filter(s => s > 0).length : 0;
+  const cpBtn   = document.querySelector('[data-action="route-mode-checkpoint"]');
+  if (cpBtn && nSteps > 0) {
+    cpBtn.textContent = `Checkpoint (${re.checkpoints.length}/${nSteps})`;
+  }
+}
+
 // ── Events ────────────────────────────────────────────────────────────────────
 function bindEvents() {
   document.querySelectorAll('[data-action]').forEach(el => {
@@ -703,6 +831,7 @@ function onAction(e) {
         ...src,
         steps:     [...src.steps],
         distances: [...presetDistances(src)],
+        route:     src.route ? JSON.parse(JSON.stringify(src.route)) : null,
         isNew:     false,
         originalIndex: idx,
       };
@@ -748,8 +877,88 @@ function onAction(e) {
       navigate('home');
       break;
     }
-    case 'share':      { sharePreset(idx);    break; }
-    case 'export-all': { exportAllPresets();  break; }
+    case 'share':      { sharePreset(idx);   break; }
+    case 'export-all': { exportAllPresets(); break; }
+
+    case 'edit-route': {
+      readStepInputs();
+      const existing = state.editing.route || { path: [], checkpoints: [] };
+      state.routeEditor = {
+        mode:        'path',
+        path:        existing.path        ? [...existing.path.map(p => [...p])]        : [],
+        checkpoints: existing.checkpoints ? [...existing.checkpoints.map(p => [...p])] : [],
+        leafletMap:  null,
+        pathLine:    null,
+        pathDots:    [],
+        cpMarkers:   [],
+        lastGps:     null,
+      };
+      navigate('route-editor');
+      break;
+    }
+    case 'route-back': {
+      if (state.routeEditor && state.routeEditor.leafletMap) {
+        state.routeEditor.leafletMap.remove();
+      }
+      state.routeEditor = null;
+      navigate('config');
+      break;
+    }
+    case 'route-save': {
+      const re = state.routeEditor;
+      if (re) {
+        state.editing.route = { path: re.path, checkpoints: re.checkpoints };
+        if (re.leafletMap) re.leafletMap.remove();
+      }
+      state.routeEditor = null;
+      navigate('config');
+      break;
+    }
+    case 'route-mode-path': {
+      state.routeEditor.mode = 'path';
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      break;
+    }
+    case 'route-mode-checkpoint': {
+      state.routeEditor.mode = 'checkpoint';
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      break;
+    }
+    case 'route-undo': {
+      const re = state.routeEditor;
+      if (!re) break;
+      if (re.mode === 'path' && re.path.length > 0) {
+        re.path.pop();
+        re.pathLine.setLatLngs(re.path);
+        const dot = re.pathDots.pop();
+        if (dot) re.leafletMap.removeLayer(dot);
+      } else if (re.mode === 'checkpoint' && re.checkpoints.length > 0) {
+        re.checkpoints.pop();
+        const mk = re.cpMarkers.pop();
+        if (mk) re.leafletMap.removeLayer(mk);
+        updateRouteEditorHeader();
+      }
+      break;
+    }
+    case 'route-clear': {
+      const re = state.routeEditor;
+      if (!re || !re.leafletMap) break;
+      if (!confirm('Cancellare tutto il percorso?')) break;
+      if (re.mode === 'path') {
+        re.path = [];
+        re.pathLine.setLatLngs([]);
+        re.pathDots.forEach(d => re.leafletMap.removeLayer(d));
+        re.pathDots = [];
+      } else {
+        re.checkpoints = [];
+        re.cpMarkers.forEach(m => re.leafletMap.removeLayer(m));
+        re.cpMarkers = [];
+        updateRouteEditorHeader();
+      }
+      break;
+    }
   }
 }
 
@@ -770,6 +979,7 @@ function saveConfig() {
     name,
     steps:     filteredSteps,
     distances: filteredDists,
+    route:     state.editing.route || null,
   };
 
   if (state.editing.isNew) {
@@ -847,6 +1057,7 @@ function mergeImportedPresets(list, label) {
       name:      p.name,
       steps:     p.steps,
       distances: p.distances || p.steps.map(() => 0),
+      route:     p.route || null,
     };
     if (idx >= 0) {
       state.presets[idx] = { ...preset, id: state.presets[idx].id };
