@@ -94,7 +94,6 @@ function onGpsUpdate(pos) {
 
   if (gps.prevLat !== null && accuracy < 30) {
     const dist = haversineM(gps.prevLat, gps.prevLon, lat, lon);
-    // Ignore micro-drift when nearly stationary
     if (speedKmh === null || speedKmh > 2) {
       gps.sectorDistM += dist;
       gps.totalDistM  += dist;
@@ -106,6 +105,8 @@ function onGpsUpdate(pos) {
   gps.speedKmh = speedKmh !== null ? speedKmh : gps.speedKmh;
   gps.accuracy = accuracy;
   gps.error    = null;
+
+  updateMapPosition(lat, lon);
 }
 
 function onGpsError(err) {
@@ -201,13 +202,13 @@ function updateRaceDOM() {
 
   // GPS
   const gps = race.gps;
-  const speedEl    = document.getElementById('race-speed');
-  const distEl     = document.getElementById('race-dist');
+  const speedEl     = document.getElementById('race-speed');
+  const distEl      = document.getElementById('race-dist');
   const distDeltaEl = document.getElementById('race-dist-delta');
-  const gpsErrEl   = document.getElementById('race-gps-error');
+  const gpsErrEl    = document.getElementById('race-gps-error');
 
   if (gpsErrEl) {
-    gpsErrEl.textContent = gps.error || '';
+    gpsErrEl.textContent  = gps.error || '';
     gpsErrEl.style.display = gps.error ? 'block' : 'none';
   }
   if (speedEl) {
@@ -215,18 +216,18 @@ function updateRaceDOM() {
       ? `${Math.round(gps.speedKmh)} km/h` : '-- km/h';
   }
 
-  const distances  = presetDistances(race.preset);
+  const distances   = presetDistances(race.preset);
   const targetDistM = distances[race.stepIndex] || 0;
   if (distEl) {
     distEl.textContent = targetDistM > 0
-      ? `${Math.round(gps.sectorDistM)} / ${targetDistM} m`
-      : `${Math.round(gps.sectorDistM)} m`;
+      ? `${Math.round(gps.sectorDistM)}/${targetDistM}m`
+      : `${Math.round(gps.sectorDistM)}m`;
   }
   if (distDeltaEl) {
     if (targetDistM > 0) {
       const dd = Math.round(gps.sectorDistM - targetDistM);
-      distDeltaEl.textContent = (dd >= 0 ? '+' : '') + dd + ' m';
-      distDeltaEl.className = 'gps-dist-delta ' + (dd > 5 ? 'late' : dd < -5 ? 'early' : 'exact');
+      distDeltaEl.textContent = (dd >= 0 ? '+' : '') + dd + 'm';
+      distDeltaEl.className   = 'map-overlay map-overlay-br ' + (dd > 5 ? 'late' : dd < -5 ? 'early' : 'exact');
     } else {
       distDeltaEl.textContent = '';
     }
@@ -242,6 +243,9 @@ function startRace(preset) {
     stepHistory: [],
     results:     [],
     beepIds:     [],
+    leafletMap:  null,
+    carMarker:   null,
+    mapReady:    false,
     gps: {
       prevLat:     null,
       prevLon:     null,
@@ -258,6 +262,61 @@ function startRace(preset) {
   startGpsTracking();
   navigate('race');
   startRaf();
+  requestAnimationFrame(initLeafletMap);
+}
+
+function initLeafletMap() {
+  const race  = state.race;
+  const mapEl = document.getElementById('race-map');
+  if (!race || !mapEl || race.leafletMap) return;
+
+  const map = L.map('race-map', {
+    zoomControl:      false,
+    attributionControl: false,
+    dragging:         false,
+    touchZoom:        false,
+    scrollWheelZoom:  false,
+    doubleClickZoom:  false,
+    boxZoom:          false,
+    keyboard:         false,
+  });
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap',
+  }).addTo(map);
+
+  L.control.attribution({ prefix: false })
+    .addAttribution('<a href="https://www.openstreetmap.org/copyright">© OSM</a>')
+    .addTo(map);
+
+  // Default view: center Italy until GPS fix
+  map.setView([41.9, 12.5], 6);
+
+  const carIcon = L.divIcon({
+    html: '<div class="car-dot"></div>',
+    className: '',
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+  });
+
+  race.carMarker  = L.marker([41.9, 12.5], { icon: carIcon }).addTo(map);
+  race.leafletMap = map;
+
+  setTimeout(() => map.invalidateSize(), 100);
+}
+
+function updateMapPosition(lat, lon) {
+  const race = state.race;
+  if (!race || !race.leafletMap) return;
+  const pos = [lat, lon];
+  race.carMarker.setLatLng(pos);
+  if (!race.mapReady) {
+    race.leafletMap.setView(pos, 16);
+    race.mapReady = true;
+  } else {
+    race.leafletMap.panTo(pos, { animate: true, duration: 0.8 });
+  }
 }
 
 function scheduleBeeps() {
@@ -275,8 +334,8 @@ function scheduleBeeps() {
 function pressNext() {
   const race = state.race;
   const now  = performance.now();
-  const actualCs = Math.round((now - race.stepStartMs) / 10);
-  const targetCs = race.preset.steps[race.stepIndex];
+  const actualCs  = Math.round((now - race.stepStartMs) / 10);
+  const targetCs  = race.preset.steps[race.stepIndex];
   const distances = presetDistances(race.preset);
 
   race.beepIds.forEach(clearTimeout);
@@ -284,8 +343,8 @@ function pressNext() {
   race.results.push({
     targetCs,
     actualCs,
-    sectorDistM:  Math.round(race.gps.sectorDistM),
-    targetDistM:  distances[race.stepIndex] || 0,
+    sectorDistM: Math.round(race.gps.sectorDistM),
+    targetDistM: distances[race.stepIndex] || 0,
   });
 
   const isLast = race.stepIndex >= race.preset.steps.length - 1;
@@ -302,7 +361,7 @@ function pressNext() {
   race.stepHistory.push(race.stepStartMs);
   resetSectorGps();
   scheduleBeeps();
-  render();
+  updateRaceControls();
 }
 
 function pressUndo() {
@@ -320,7 +379,28 @@ function pressUndo() {
   race.stepHistory.push(race.stepStartMs);
   resetSectorGps();
   scheduleBeeps();
-  render();
+  updateRaceControls();
+}
+
+// Partial update — keeps map alive, only refreshes labels/buttons
+function updateRaceControls() {
+  const race    = state.race;
+  const isFirst = race.stepIndex === 0 && race.results.length === 0;
+  const isLast  = race.stepIndex >= race.preset.steps.length - 1;
+
+  const undoBtn = document.getElementById('btn-undo');
+  const nextBtn = document.getElementById('btn-next');
+  if (undoBtn) undoBtn.disabled = isFirst;
+  if (nextBtn) nextBtn.textContent = isLast ? '■ FINE' : '▶ AVANTI';
+
+  // Recalculate initTotal (completed steps changed)
+  const totalEl = document.getElementById('race-delta-total');
+  if (totalEl) {
+    const completedTarget = race.preset.steps.slice(0, race.stepIndex).reduce((a, s) => a + s, 0);
+    const completedActual = race.results.reduce((a, r) => a + r.actualCs, 0);
+    const targetCs = race.preset.steps[race.stepIndex];
+    totalEl.textContent = formatDelta((completedActual - targetCs) - completedTarget);
+  }
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -461,23 +541,19 @@ function renderRace() {
         </div>
       </div>
 
-      <div class="race-gps">
-        <div class="gps-block">
-          <div class="gps-label">VELOCITÀ</div>
-          <div id="race-speed" class="gps-value">-- km/h</div>
+      <div class="race-map-wrapper">
+        <div id="race-map"></div>
+        <div class="map-overlay map-overlay-tl" id="race-speed">-- km/h</div>
+        <div class="map-overlay map-overlay-tr" id="race-dist">
+          0${targetDistM > 0 ? '/' + targetDistM + 'm' : 'm'}
         </div>
-        <div class="gps-divider"></div>
-        <div class="gps-block">
-          <div class="gps-label">DISTANZA</div>
-          <div id="race-dist" class="gps-value">0${targetDistM > 0 ? ' / ' + targetDistM + ' m' : ' m'}</div>
-          <div id="race-dist-delta" class="gps-dist-delta"></div>
-        </div>
+        <div class="map-overlay map-overlay-br" id="race-dist-delta"></div>
+        <div class="map-overlay map-overlay-bl gps-error-overlay" id="race-gps-error" style="display:none"></div>
       </div>
-      <div id="race-gps-error" class="gps-error" style="display:none"></div>
 
       <div class="race-buttons">
-        <button class="btn-undo" data-action="undo" ${isFirst ? 'disabled' : ''}>◀ UNDO</button>
-        <button class="btn-next" data-action="next">${isLast ? '■ FINE' : '▶ AVANTI'}</button>
+        <button id="btn-undo" class="btn-undo" data-action="undo" ${isFirst ? 'disabled' : ''}>◀ UNDO</button>
+        <button id="btn-next" class="btn-next" data-action="next">${isLast ? '■ FINE' : '▶ AVANTI'}</button>
       </div>
     </div>`;
 }
