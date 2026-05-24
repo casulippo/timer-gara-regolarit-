@@ -73,6 +73,12 @@ header h2 {
   font-weight: 600;
 }
 
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 /* ── Buttons ─────────────────────────────────────────── */
 button {
   cursor: pointer;

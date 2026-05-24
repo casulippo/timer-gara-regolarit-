@@ -241,7 +241,8 @@ function renderHome() {
               <span class="preset-steps">${p.steps.length} step &middot; ${formatCs(total)}</span>
             </div>
             <div class="preset-actions">
-              <button class="btn-icon" data-action="edit" data-index="${i}" title="Modifica">✏️</button>
+              <button class="btn-icon" data-action="share" data-index="${i}" title="Condividi">🔗</button>
+              <button class="btn-icon" data-action="edit"  data-index="${i}" title="Modifica">✏️</button>
               <button class="btn-icon" data-action="delete" data-index="${i}" title="Elimina">🗑️</button>
               <button class="btn-start" data-action="start" data-index="${i}" title="Avvia">▶</button>
             </div>
@@ -252,7 +253,13 @@ function renderHome() {
     <div class="screen home-screen">
       <header>
         <h1>Rally Timer</h1>
-        <button class="btn-icon" data-action="theme" title="Tema">${icon}</button>
+        <div class="header-actions">
+          <label class="btn-icon" title="Importa JSON" style="cursor:pointer">
+            📥<input type="file" accept=".json" id="import-file-input" style="display:none" />
+          </label>
+          <button class="btn-icon" data-action="export-all" title="Esporta tutti">📤</button>
+          <button class="btn-icon" data-action="theme" title="Tema">${icon}</button>
+        </div>
       </header>
       <div class="preset-list">${list}</div>
       <button class="btn-primary" data-action="new">+ Nuovo Preset</button>
@@ -383,6 +390,13 @@ function bindEvents() {
     });
   });
 
+  const importInput = document.getElementById('import-file-input');
+  if (importInput) {
+    importInput.addEventListener('change', e => {
+      if (e.target.files[0]) importFromFile(e.target.files[0]);
+    });
+  }
+
   document.querySelectorAll('.btn-remove-step').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -478,6 +492,14 @@ function onAction(e) {
       navigate('home');
       break;
     }
+    case 'share': {
+      sharePreset(idx);
+      break;
+    }
+    case 'export-all': {
+      exportAllPresets();
+      break;
+    }
   }
 }
 
@@ -516,6 +538,66 @@ function escHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+// ── Share / Export / Import ───────────────────────────────────────────────────
+function sharePreset(idx) {
+  const { name, steps } = state.presets[idx];
+  const encoded = btoa(unescape(encodeURIComponent(JSON.stringify({ name, steps }))));
+  const url = `${location.origin}${location.pathname}#share=${encoded}`;
+  navigator.clipboard.writeText(url)
+    .then(() => alert(`Link copiato negli appunti!\nInvialo all'altro dispositivo.`))
+    .catch(() => prompt('Copia questo link:', url));
+}
+
+function exportAllPresets() {
+  if (state.presets.length === 0) { alert('Nessun preset da esportare.'); return; }
+  const json = JSON.stringify({ version: 1, presets: state.presets }, null, 2);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+  a.download = 'rally-timer-presets.json';
+  a.click();
+}
+
+function importFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const list = Array.isArray(data.presets) ? data.presets
+                 : Array.isArray(data)          ? data : [];
+      if (list.length === 0) { alert('Nessun preset trovato nel file.'); return; }
+      mergeImportedPresets(list, `${list.length} preset dal file`);
+    } catch (_) { alert('File non valido o corrotto.'); }
+  };
+  reader.readAsText(file);
+}
+
+function checkUrlShare() {
+  const hash = location.hash;
+  if (!hash.startsWith('#share=')) return;
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(hash.slice(7)))));
+    if (!data.name || !Array.isArray(data.steps) || data.steps.length === 0) return;
+    history.replaceState(null, '', location.pathname);
+    mergeImportedPresets([data], `"${data.name}"`);
+  } catch (_) {}
+}
+
+function mergeImportedPresets(list, label) {
+  if (!confirm(`Importare ${label}?\nI preset con lo stesso nome verranno sostituiti.`)) return;
+  list.forEach(p => {
+    if (!p.name || !Array.isArray(p.steps) || p.steps.length === 0) return;
+    const idx = state.presets.findIndex(x => x.name === p.name);
+    const preset = { id: Date.now() + Math.random(), name: p.name, steps: p.steps };
+    if (idx >= 0) {
+      state.presets[idx] = { ...preset, id: state.presets[idx].id };
+    } else {
+      state.presets.push(preset);
+    }
+  });
+  savePresets();
+  render();
+}
+
 // ── Service Worker ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -524,4 +606,5 @@ if ('serviceWorker' in navigator) {
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
+checkUrlShare();
 render();
