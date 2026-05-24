@@ -646,9 +646,10 @@ function renderResults() {
 
 // ── Route Editor ─────────────────────────────────────────────────────────────
 function renderRouteEditor() {
-  const re   = state.routeEditor;
+  const re     = state.routeEditor;
   const nSteps = state.editing ? state.editing.steps.filter(s => s > 0).length : 0;
   const cpCount = (re.checkpoints || []).length;
+  const ptCount = (re.waypoints || []).length;
   const modePathActive = re.mode === 'path' ? 'active' : '';
   const modeCpActive   = re.mode === 'checkpoint' ? 'active' : '';
 
@@ -657,17 +658,33 @@ function renderRouteEditor() {
       <div class="route-editor-header">
         <button class="btn-icon" data-action="route-back">←</button>
         <div class="route-mode-toggle">
-          <button class="mode-btn ${modePathActive}" data-action="route-mode-path">Tracciato</button>
-          <button class="mode-btn ${modeCpActive}"   data-action="route-mode-checkpoint">
+          <button class="mode-btn ${modePathActive}" data-action="route-mode-path">
+            Tracciato${ptCount > 0 ? ` (${ptCount}pt)` : ''}
+          </button>
+          <button class="mode-btn ${modeCpActive}" data-action="route-mode-checkpoint">
             Checkpoint${nSteps > 0 ? ` (${cpCount}/${nSteps})` : ''}
           </button>
         </div>
         <button class="btn-icon" data-action="route-save" title="Salva">✓</button>
       </div>
-      <div id="route-map" class="route-map"></div>
+
+      <div class="route-map-container">
+        <div id="route-map" class="route-map"></div>
+        <div id="route-loading" class="route-loading" style="display:none">
+          <div class="route-loading-spinner"></div>
+          <span>Calcolo percorso stradale…</span>
+        </div>
+        <div id="route-msg" class="route-msg" style="display:none"></div>
+        <div class="route-hint">
+          ${re.mode === 'path'
+            ? 'Tap sulla mappa per aggiungere punti. Il percorso seguirà le strade.'
+            : `Tap per aggiungere i checkpoint dei pressostati (${cpCount}/${nSteps}).`}
+        </div>
+      </div>
+
       <div class="route-editor-footer">
-        <button class="btn-secondary-sm" data-action="route-undo">↩ Annulla ultimo</button>
-        <button class="btn-secondary-sm" data-action="route-clear">✕ Cancella tutto</button>
+        <button class="btn-secondary-sm" data-action="route-undo">↩ Annulla</button>
+        <button class="btn-secondary-sm" data-action="route-clear">✕ Cancella</button>
       </div>
     </div>`;
 }
@@ -680,38 +697,100 @@ function initRouteEditorMap() {
   const map = L.map('route-map', { zoomControl: true, attributionControl: false });
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
 
-  // Start from last known GPS position or Italy center
-  const lastGps = state.routeEditor.lastGps;
-  const center  = lastGps ? lastGps : [41.9, 12.5];
-  const zoom    = lastGps ? 15 : 6;
-  map.setView(center, zoom);
+  re.leafletMap = map;
+  re.pathLine   = L.polyline(re.waypoints, { color: '#4af', weight: 5, opacity: 0.9 }).addTo(map);
+  re.cpMarkers  = re.checkpoints.map((cp, i) => makeCpMarker(cp, i).addTo(map));
+  re.dotMarkers = [];  // only dots for newly tapped points in this session
 
-  re.leafletMap    = map;
-  re.pathLine      = L.polyline(re.path, { color: '#4af', weight: 4 }).addTo(map);
-  re.pathDots      = re.path.map(p => L.circleMarker(p, pathDotStyle()).addTo(map));
-  re.cpMarkers     = re.checkpoints.map((cp, i) => makeCpMarker(cp, i).addTo(map));
-
-  if (re.path.length > 1) {
-    map.fitBounds(re.pathLine.getBounds(), { padding: [20, 20] });
+  if (re.waypoints.length > 1) {
+    map.fitBounds(re.pathLine.getBounds(), { padding: [30, 30] });
+  } else {
+    map.setView([41.9, 12.5], 6);
   }
 
   map.on('click', e => {
-    const { lat, lng } = e.latlng;
     const re = state.routeEditor;
+    if (re.loading) return;
+    const { lat, lng } = e.latlng;
     if (re.mode === 'path') {
-      re.path.push([lat, lng]);
-      re.pathLine.addLatLng([lat, lng]);
-      re.pathDots.push(L.circleMarker([lat, lng], pathDotStyle()).addTo(map));
+      addRouteWaypoint(lat, lng);
     } else {
       const maxCp = state.editing ? state.editing.steps.filter(s => s > 0).length : 10;
-      if (re.checkpoints.length >= maxCp) return;
+      if (re.checkpoints.length >= maxCp) {
+        alert(`Massimo ${maxCp} checkpoint (uguale al numero di step).`); return;
+      }
       re.checkpoints.push([lat, lng]);
       re.cpMarkers.push(makeCpMarker([lat, lng], re.checkpoints.length - 1).addTo(map));
+      updateRouteEditorHeader();
     }
-    updateRouteEditorHeader();
   });
 
   setTimeout(() => map.invalidateSize(), 100);
+}
+
+async function addRouteWaypoint(lat, lon) {
+  const re = state.routeEditor;
+  if (!re || re.loading) return;
+
+  const newPt = [lat, lon];
+
+  if (re.waypoints.length === 0) {
+    // First point — just place it, no OSRM needed
+    re.tapBoundaries.push(0);
+    re.waypoints.push(newPt);
+    re.pathLine.setLatLngs(re.waypoints);
+    re.dotMarkers.push(L.circleMarker(newPt, pathDotStyle()).addTo(re.leafletMap));
+    return;
+  }
+
+  const fromPt = re.waypoints[re.waypoints.length - 1];
+  const boundary = re.waypoints.length;
+
+  re.loading = true;
+  setRouteLoadingUI(true);
+
+  try {
+    const segment = await fetchRoadRoute(fromPt, newPt);
+    // segment = [fromPt, ...roadPoints, newPt]; skip first (already in waypoints)
+    re.tapBoundaries.push(boundary);
+    re.waypoints.push(...segment.slice(1));
+    re.pathLine.setLatLngs(re.waypoints);
+    re.dotMarkers.push(L.circleMarker(newPt, pathDotStyle()).addTo(re.leafletMap));
+  } catch (_) {
+    // Offline or OSRM error — straight line fallback
+    re.tapBoundaries.push(boundary);
+    re.waypoints.push(newPt);
+    re.pathLine.setLatLngs(re.waypoints);
+    re.dotMarkers.push(L.circleMarker(newPt, { ...pathDotStyle(), color: '#f90', fillColor: '#f90' }).addTo(re.leafletMap));
+    showRouteMsg('Offline: tratto in linea retta', 2000);
+  } finally {
+    re.loading = false;
+    setRouteLoadingUI(false);
+  }
+}
+
+async function fetchRoadRoute(from, to) {
+  const url = `https://router.project-osrm.org/route/v1/driving/`
+    + `${from[1]},${from[0]};${to[1]},${to[0]}`
+    + `?overview=full&geometries=geojson`;
+  const res  = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error('OSRM HTTP error');
+  const data = await res.json();
+  if (data.code !== 'Ok') throw new Error(data.message);
+  return data.routes[0].geometry.coordinates.map(([lon, lat]) => [lat, lon]);
+}
+
+function setRouteLoadingUI(loading) {
+  const el = document.getElementById('route-loading');
+  if (el) el.style.display = loading ? 'flex' : 'none';
+}
+
+function showRouteMsg(msg, ms = 2500) {
+  const el = document.getElementById('route-msg');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, ms);
 }
 
 function pathDotStyle() {
@@ -884,22 +963,21 @@ function onAction(e) {
       readStepInputs();
       const existing = state.editing.route || { path: [], checkpoints: [] };
       state.routeEditor = {
-        mode:        'path',
-        path:        existing.path        ? [...existing.path.map(p => [...p])]        : [],
-        checkpoints: existing.checkpoints ? [...existing.checkpoints.map(p => [...p])] : [],
-        leafletMap:  null,
-        pathLine:    null,
-        pathDots:    [],
-        cpMarkers:   [],
-        lastGps:     null,
+        mode:          'path',
+        waypoints:     existing.path ? existing.path.map(p => [...p]) : [],
+        tapBoundaries: [],      // [] = can't undo the base path; filled as user taps
+        checkpoints:   existing.checkpoints ? existing.checkpoints.map(p => [...p]) : [],
+        loading:       false,
+        leafletMap:    null,
+        pathLine:      null,
+        dotMarkers:    [],
+        cpMarkers:     [],
       };
       navigate('route-editor');
       break;
     }
     case 'route-back': {
-      if (state.routeEditor && state.routeEditor.leafletMap) {
-        state.routeEditor.leafletMap.remove();
-      }
+      if (state.routeEditor && state.routeEditor.leafletMap) state.routeEditor.leafletMap.remove();
       state.routeEditor = null;
       navigate('config');
       break;
@@ -907,7 +985,7 @@ function onAction(e) {
     case 'route-save': {
       const re = state.routeEditor;
       if (re) {
-        state.editing.route = { path: re.path, checkpoints: re.checkpoints };
+        state.editing.route = { path: re.waypoints, checkpoints: re.checkpoints };
         if (re.leafletMap) re.leafletMap.remove();
       }
       state.routeEditor = null;
@@ -928,13 +1006,16 @@ function onAction(e) {
     }
     case 'route-undo': {
       const re = state.routeEditor;
-      if (!re) break;
-      if (re.mode === 'path' && re.path.length > 0) {
-        re.path.pop();
-        re.pathLine.setLatLngs(re.path);
-        const dot = re.pathDots.pop();
+      if (!re || re.loading) break;
+      if (re.mode === 'path') {
+        if (re.tapBoundaries.length === 0) break;  // can't undo base path
+        const boundary = re.tapBoundaries.pop();
+        re.waypoints = re.waypoints.slice(0, boundary);
+        re.pathLine.setLatLngs(re.waypoints);
+        const dot = re.dotMarkers.pop();
         if (dot) re.leafletMap.removeLayer(dot);
-      } else if (re.mode === 'checkpoint' && re.checkpoints.length > 0) {
+      } else {
+        if (re.checkpoints.length === 0) break;
         re.checkpoints.pop();
         const mk = re.cpMarkers.pop();
         if (mk) re.leafletMap.removeLayer(mk);
@@ -944,13 +1025,15 @@ function onAction(e) {
     }
     case 'route-clear': {
       const re = state.routeEditor;
-      if (!re || !re.leafletMap) break;
-      if (!confirm('Cancellare tutto il percorso?')) break;
+      if (!re || !re.leafletMap || re.loading) break;
+      const what = re.mode === 'path' ? 'il tracciato' : 'i checkpoint';
+      if (!confirm(`Cancellare tutto ${what}?`)) break;
       if (re.mode === 'path') {
-        re.path = [];
+        re.waypoints = [];
+        re.tapBoundaries = [];
         re.pathLine.setLatLngs([]);
-        re.pathDots.forEach(d => re.leafletMap.removeLayer(d));
-        re.pathDots = [];
+        re.dotMarkers.forEach(d => re.leafletMap.removeLayer(d));
+        re.dotMarkers = [];
       } else {
         re.checkpoints = [];
         re.cpMarkers.forEach(m => re.leafletMap.removeLayer(m));
