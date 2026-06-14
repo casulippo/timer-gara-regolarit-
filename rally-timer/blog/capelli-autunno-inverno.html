@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Con il cambio stagione i capelli attraversano una fase di ricambio naturale. Fabiola spiega quali trattamenti anticaduta scegliere, con che frequenza e i costi in salone.">
+    <title>Capelli Autunno Inverno: Quali Trattamenti? — Central Fabì Blog</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --beige:           #F5EDD8;
+            --crema:           #FBF7EE;
+            --terracotta:      #C8654A;
+            --terracotta-dark: #A8452A;
+            --oro:             #B8963E;
+            --oro-light:       #D4AF6A;
+            --marrone:         #5C3D2E;
+            --grigio-caldo:    #8C7B6B;
+            --bianco:          #FEFCF8;
+            --nero:            #1A1209;
+            --font-display:    'Playfair Display', Georgia, serif;
+            --font-body:       'Lato', system-ui, sans-serif;
+            --tr:              0.35s ease;
+            --r:               4px;
+        }
+
+        html { scroll-behavior: smooth; font-size: 16px; }
+        body { font-family: var(--font-body); background: var(--bianco); color: var(--nero); line-height: 1.55; overflow-x: hidden; }
+        img  { display: block; max-width: 100%; }
+        a    { color: inherit; text-decoration: none; }
+
+        *:focus-visible { outline: 2px solid var(--terracotta); outline-offset: 3px; border-radius: var(--r); }
+
+        /* ===== TOPBAR ===== */
+        .topbar {
+            position: sticky; top: 0; z-index: 100;
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 40px; height: 64px;
+            background: rgba(254,252,248,0.97);
+            border-bottom: 1px solid rgba(184,150,62,0.15);
+        }
+        .logo { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; color: var(--marrone); }
+        .logo span { color: var(--oro); }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-size: 0.78rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase;
+            color: var(--grigio-caldo); transition: color var(--tr);
+        }
+        .back-link:hover { color: var(--terracotta); }
+        .back-link svg { transition: transform var(--tr); }
+        .back-link:hover svg { transform: translateX(-3px); }
+
+        /* ===== HERO ===== */
+        .article-hero {
+            width: 100%; height: clamp(280px, 45vw, 520px);
+            overflow: hidden; position: relative;
+        }
+        .article-hero img {
+            width: 100%; height: 100%; object-fit: cover; display: block;
+        }
+        .article-hero::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(to bottom, transparent 40%, rgba(26,18,9,0.45) 100%);
+        }
+
+        /* ===== ARTICLE ===== */
+        .article-wrap {
+            max-width: 740px; margin: 0 auto;
+            padding: 64px 40px 80px;
+        }
+
+        .article-meta {
+            display: flex; align-items: center; gap: 14px; margin-bottom: 24px;
+        }
+        .article-tag {
+            font-size: 0.68rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+            color: white; background: var(--terracotta);
+            border-radius: 20px; padding: 4px 12px;
+        }
+        .article-date { font-size: 0.8rem; color: var(--grigio-caldo); }
+
+        .article-title {
+            font-family: var(--font-display);
+            font-size: clamp(1.8rem, 4vw, 2.8rem);
+            font-weight: 700; color: var(--marrone);
+            line-height: 1.2; margin-bottom: 40px;
+        }
+
+        /* body content */
+        .article-body { color: var(--nero); }
+
+        .article-body p {
+            font-size: 1.05rem; line-height: 1.75;
+            color: var(--grigio-caldo); margin-bottom: 22px;
+        }
+        .article-body p strong { color: var(--nero); font-weight: 700; }
+        .article-body p em { font-style: italic; }
+
+        .article-body .intro {
+            font-size: 1.1rem; color: var(--nero); margin-bottom: 28px;
+        }
+
+        .article-body blockquote {
+            margin: 32px 0;
+            padding: 20px 28px;
+            border-left: 3px solid var(--oro);
+            background: var(--crema);
+            border-radius: 0 8px 8px 0;
+        }
+        .article-body blockquote p {
+            font-family: var(--font-display); font-style: italic;
+            font-size: 1.05rem; color: var(--marrone); margin-bottom: 0;
+        }
+
+        .article-body h3 {
+            font-family: var(--font-display);
+            font-size: 1.25rem; font-weight: 700;
+            color: var(--marrone); margin: 40px 0 14px;
+        }
+
+        .article-body ul {
+            list-style: none; margin: 16px 0 22px 0;
+        }
+        .article-body ul li {
+            font-size: 1rem; color: var(--grigio-caldo);
+            padding: 6px 0 6px 20px; position: relative; line-height: 1.6;
+        }
+        .article-body ul li::before {
+            content: '✦'; position: absolute; left: 0;
+            color: var(--oro); font-size: 0.6rem; top: 10px;
+        }
+
+        .price-box {
+            background: var(--beige); border-radius: 12px;
+            padding: 28px 32px; margin: 32px 0;
+            border: 1px solid rgba(184,150,62,0.2);
+        }
+        .price-box h4 {
+            font-family: var(--font-display); font-size: 1rem;
+            font-weight: 700; color: var(--marrone); margin-bottom: 14px;
+        }
+        .price-row {
+            display: flex; justify-content: space-between; align-items: baseline;
+            padding: 8px 0; border-bottom: 1px solid rgba(92,61,46,0.1);
+            font-size: 0.92rem; color: var(--grigio-caldo);
+        }
+        .price-row:last-child { border-bottom: none; }
+        .price-row strong { color: var(--marrone); font-weight: 700; }
+
+        /* ===== FIRMA ===== */
+        .author-box {
+            display: flex; align-items: center; gap: 18px;
+            margin-top: 56px; padding-top: 40px;
+            border-top: 1px solid rgba(184,150,62,0.2);
+        }
+        .author-avatar {
+            width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+            background: var(--terracotta);
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--font-display); font-weight: 700; color: white; font-size: 1.1rem;
+        }
+        .author-name { font-weight: 700; color: var(--marrone); margin-bottom: 3px; }
+        .author-role { font-size: 0.82rem; color: var(--grigio-caldo); }
+
+        /* ===== CTA ===== */
+        .article-cta {
+            text-align: center; background: var(--marrone);
+            padding: 64px 40px; margin-top: 0;
+        }
+        .article-cta p {
+            font-size: 0.85rem; letter-spacing: 0.2em; text-transform: uppercase;
+            color: var(--oro-light); margin-bottom: 16px;
+        }
+        .article-cta h2 {
+            font-family: var(--font-display); font-size: clamp(1.6rem, 3vw, 2.2rem);
+            font-weight: 700; color: white; margin-bottom: 28px; line-height: 1.25;
+        }
+        .article-cta h2 em { font-style: italic; color: var(--oro-light); }
+        .btn-cta {
+            display: inline-flex; align-items: center;
+            padding: 14px 36px;
+            background: var(--terracotta); color: white;
+            border-radius: var(--r);
+            font-weight: 700; font-size: 0.875rem;
+            letter-spacing: 0.08em; text-transform: uppercase;
+            transition: background var(--tr), transform 0.2s;
+        }
+        .btn-cta:hover { background: var(--terracotta-dark); transform: translateY(-2px); }
+
+        /* ===== FOOTER ===== */
+        footer {
+            background: var(--marrone); color: rgba(255,255,255,0.5);
+            text-align: center; padding: 24px 40px;
+            font-size: 0.78rem; border-top: 1px solid rgba(255,255,255,0.08);
+        }
+
+        /* ===== MOBILE ===== */
+        @media (max-width: 600px) {
+            .topbar { padding: 0 20px; }
+            .article-wrap { padding: 40px 20px 64px; }
+            .price-row { flex-direction: column; gap: 2px; }
+            .article-cta { padding: 48px 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ===== TOPBAR ===== -->
+<header class="topbar">
+    <a href="../index.html" class="logo">Central <span>Fabì</span></a>
+    <a href="../index.html#blog" class="back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        Torna al sito
+    </a>
+</header>
+
+<!-- ===== HERO ===== -->
+<div class="article-hero">
+    <img src="https://www.centralfabi.com/wp-content/uploads/2020/10/img_0100.jpg" alt="Trattamento anticaduta capelli autunno inverno Central Fabì">
+</div>
+
+<!-- ===== ARTICLE ===== -->
+<article>
+    <div class="article-wrap">
+
+        <div class="article-meta">
+            <span class="article-tag">Capelli</span>
+            <span class="article-date">14 Ottobre 2020 · di Fabiola</span>
+        </div>
+
+        <h1 class="article-title">Capelli Autunno Inverno:<br>Quali Trattamenti?</h1>
+
+        <div class="article-body">
+
+            <p class="intro">Amiche di Central Fabì,</p>
+
+            <p>Sicuramente ognuna di voi una volta giunta la stagione autunnale si è trovata alle prese con capelli difficili da gestire, con effetto crespo perenne, e purtroppo qualche episodio di <strong>caduta</strong> e <strong>perdita</strong> di capelli.</p>
+
+            <p><strong>È tutto normale.</strong></p>
+
+            <p>I capelli, specialmente nei <strong>cambi di stagione</strong> e nel periodo che va verso l'inverno attraversano una fase di ricambio. Sono certa che almeno una volta ognuna di voi si è sentita dire:</p>
+
+            <blockquote>
+                <p>"Perdi i capelli perché è periodo di castagne."</p>
+            </blockquote>
+
+            <h3>Quando preoccuparsi?</h3>
+            <p>Se il periodo di <strong>caduta dei capelli</strong> è prolungato con una diminuzione consistente di volume e massa, forse è il caso di affidarsi ad un medico tricologo che saprà consigliare la cura più adatta al momento.</p>
+
+            <h3>Con quali prodotti intervenire?</h3>
+            <p>Sicuramente con prodotti professionali ad azione stimolante ed <strong>energizzante</strong>. Nel mio salone utilizzo una linea Made in Italy a bassissimo impatto ambientale, formulata con elementi provenienti dalla natura e <strong>non testata su animali</strong>. Questo fa sì che si intervenga in maniera delicata e non invasiva su cuoio capelluto e struttura del capello.</p>
+
+            <h3>Con che frequenza vanno utilizzati i prodotti anticaduta?</h3>
+            <p>Quello su cui mi focalizzo solitamente è la <strong>costanza</strong>: una cura ottima fatta con poca continuità porta benefici decisamente minori e un dispendio di denaro inutile. Il mio consiglio è fare la cura anticaduta almeno <strong>2 volte all'anno</strong>, meglio se nei cambi di stagione.</p>
+
+            <h3>In cosa consiste il trattamento anticaduta?</h3>
+            <p>La procedura per eccellenza è effettuare un <strong>primo trattamento in salone</strong>, in modo da visionare l'applicazione dei diversi prodotti da parte di un professionista e poterla ripetere senza difficoltà a casa.</p>
+
+            <p>Solitamente inizio con uno <strong>scrub purificante</strong> a livello cutaneo per eliminare scorie e tossine e potenziare l'azione dei prodotti seguenti.</p>
+
+            <p>Il trattamento prosegue con uno <strong>shampoo energizzante</strong> che stimola l'attività del follicolo pilifero e la microcircolazione cutanea, ripristinando le condizioni ottimali per la crescita. Se necessario, applico un conditioner delicato solo su lunghezze e punte.</p>
+
+            <p>La fase finale è la più importante: tamponando i capelli dall'eccesso di acqua, applico una <strong>lozione anticaduta</strong> energizzante su tutta la cute, concentrandomi su <em>fronte, tempie e sommità del capo</em>. La lozione non va sfregata ma massaggiata con i polpastrelli con movimenti circolari e leggera pressione. Un leggero rossore e pizzicore è segnale di efficacia.</p>
+
+            <h3>La linea Triskell Energy</h3>
+            <p>La linea che utilizzo da anni con grandi risultati è frutto di una fusione di elementi naturali:</p>
+            <ul>
+                <li>Rosmarino</li>
+                <li>Ginseng</li>
+                <li>Cellule staminali</li>
+                <li>Camomilla</li>
+                <li>Iperico</li>
+                <li>Salvia</li>
+            </ul>
+            <p>Oltre alle grandi proprietà rivitalizzanti, ha un magnifico effetto <strong>anti-age</strong>!</p>
+
+            <h3>Quanto costa il trattamento?</h3>
+
+            <div class="price-box">
+                <h4>Costi orientativi</h4>
+                <div class="price-row">
+                    <span>Trattamento in salone</span>
+                    <strong>~30 €</strong>
+                </div>
+                <div class="price-row">
+                    <span>Shampoo mantenimento casa</span>
+                    <strong>15 – 20 €</strong>
+                </div>
+                <div class="price-row">
+                    <span>Lozione / spray anticaduta</span>
+                    <strong>45 – 70 €</strong>
+                </div>
+                <div class="price-row">
+                    <span>Durata della cura</span>
+                    <strong>~2 mesi</strong>
+                </div>
+            </div>
+
+            <p>Non vi resta che venire in salone a provarlo!</p>
+
+        </div>
+
+        <!-- Firma -->
+        <div class="author-box">
+            <div class="author-avatar">F</div>
+            <div>
+                <div class="author-name">Fabiola</div>
+                <div class="author-role">Central Fabì — Via Giacomo Boni 39, Milano</div>
+            </div>
+        </div>
+
+    </div>
+</article>
+
+<!-- ===== CTA ===== -->
+<div class="article-cta">
+    <p>Central Fabì · Milano</p>
+    <h2>Vuoi provare il trattamento<br>in <em>salone</em>?</h2>
+    <a href="tel:024334401" class="btn-cta">📞 &nbsp;Prenota ora — 02 433401</a>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+    © 2025 Central Fabì · Via Giacomo Boni 39, 20144 Milano
+</footer>
+
+</body>
+</html>
