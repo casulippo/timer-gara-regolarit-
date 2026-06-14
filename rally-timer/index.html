@@ -301,6 +301,49 @@
         .detail-num { font-family: var(--font-display); font-size: 2.4rem; font-weight: 700; color: var(--terracotta); line-height: 1; }
         .detail-label { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--grigio-caldo); margin-top: 4px; }
 
+        /* ===== BLOG ===== */
+        #blog { background: var(--crema); }
+        .blog-featured {
+            display: grid; grid-template-columns: 5fr 7fr;
+            border-radius: 16px; overflow: hidden;
+            box-shadow: 0 4px 32px rgba(92,61,46,0.08);
+            margin-top: 56px;
+        }
+        .blog-img { position: relative; overflow: hidden; min-height: 380px; }
+        .blog-img img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.55s ease; }
+        .blog-featured:hover .blog-img img { transform: scale(1.04); }
+        .blog-content {
+            background: white;
+            padding: 56px 52px;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+        .blog-meta { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+        .blog-tag {
+            font-size: 0.68rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+            color: white; background: var(--terracotta);
+            border-radius: 20px; padding: 4px 12px;
+        }
+        .blog-date { font-size: 0.78rem; color: var(--grigio-caldo); }
+        .blog-content h3 {
+            font-family: var(--font-display); font-size: clamp(1.3rem, 2vw, 1.9rem);
+            font-weight: 700; color: var(--marrone); line-height: 1.25; margin-bottom: 18px;
+        }
+        .blog-excerpt { font-size: 0.95rem; color: var(--grigio-caldo); line-height: 1.7; margin-bottom: 32px; }
+        .blog-cta {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-size: 0.8rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+            color: var(--terracotta); transition: gap var(--tr), color var(--tr);
+        }
+        .blog-cta:hover { color: var(--marrone); gap: 14px; }
+        .blog-cta svg { flex-shrink: 0; transition: transform var(--tr); }
+        .blog-cta:hover svg { transform: translateX(3px); }
+
+        @media (max-width: 900px) {
+            .blog-featured { grid-template-columns: 1fr; }
+            .blog-img { min-height: 260px; }
+            .blog-content { padding: 36px 28px; }
+        }
+
         /* ===== WEDDING ===== */
         #wedding { background: var(--bianco); }
         .wedding-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-radius: 16px; overflow: hidden; min-height: 500px; }
@@ -473,6 +516,7 @@
         <a href="#servizi-grid">Servizi</a>
         <a href="#chisiamo">Chi Siamo</a>
         <a href="#wedding">Wedding</a>
+        <a href="#blog">Blog</a>
         <a href="#recensioni">Recensioni</a>
         <a href="#prenota" class="btn-prenota">Prenota</a>
     </nav>
@@ -487,6 +531,7 @@
     <a href="#servizi-grid" class="mlink">Servizi</a>
     <a href="#chisiamo"     class="mlink">Chi Siamo</a>
     <a href="#wedding"      class="mlink">Wedding</a>
+    <a href="#blog"         class="mlink">Blog</a>
     <a href="#recensioni"   class="mlink">Recensioni</a>
     <a href="#prenota" class="btn-prenota mlink" style="text-align:center">Prenota ora</a>
 </div>
@@ -667,6 +712,33 @@
                     <li>Disponibilità 7 giorni su 7 in tutta Italia</li>
                 </ul>
                 <a href="https://wa.me/393315284808?text=Ciao%2C%20vorrei%20informazioni%20sul%20servizio%20sposa" class="btn-wedding" target="_blank" rel="noopener">Chiedi info su WhatsApp</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== BLOG ===== -->
+<section id="blog">
+    <div class="container">
+        <div class="fi" style="text-align:center; max-width:520px; margin:0 auto;">
+            <p class="section-label">Dal Blog</p>
+            <h2 class="section-title">Consigli di <em>stile</em></h2>
+        </div>
+        <div class="blog-featured fi">
+            <div class="blog-img">
+                <img src="https://www.centralfabi.com/wp-content/uploads/2020/10/img_0100.jpg" alt="Trattamento anticaduta capelli autunno inverno">
+            </div>
+            <div class="blog-content">
+                <div class="blog-meta">
+                    <span class="blog-tag">Capelli</span>
+                    <span class="blog-date">14 Ottobre 2020</span>
+                </div>
+                <h3>Capelli Autunno Inverno:<br>Quali Trattamenti?</h3>
+                <p class="blog-excerpt">Con il cambio di stagione è normale affrontare effetto crespo e caduta — i capelli attraversano una fase di ricambio naturale. Fabiola spiega quando preoccuparsi, quali trattamenti scegliere e come mantenerli a casa con prodotti bio a basso impatto ambientale.</p>
+                <a href="https://www.centralfabi.com/capelli-autunno-inverno-quali-trattamenti/" class="blog-cta" target="_blank" rel="noopener">
+                    Leggi l'articolo
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
             </div>
         </div>
     </div>
