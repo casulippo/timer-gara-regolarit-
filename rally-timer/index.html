@@ -904,6 +904,16 @@
         entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('v'); });
     }, { threshold: 0.1 });
     document.querySelectorAll('.fi').forEach(el => observer.observe(el));
+
+    // Forza visibili gli elementi già nel viewport (bfcache + navigazione con hash)
+    function revealVisible() {
+        document.querySelectorAll('.fi').forEach(el => {
+            const r = el.getBoundingClientRect();
+            if (r.top < window.innerHeight && r.bottom > 0) el.classList.add('v');
+        });
+    }
+    revealVisible();
+    window.addEventListener('pageshow', revealVisible);
 </script>
 
 </body>
