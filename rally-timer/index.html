@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Central Fabì — salone di parrucchieri a Milano, Via Giacomo Boni 39. Prodotti 100% vegan, taglio, colore, make up, nail art e wedding. Prenota ora: 02 433401.">
     <title>Central Fabì — Salone di Parrucchieri Milano</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,700;1,400&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
     <style>
@@ -27,8 +28,11 @@
             --r:               4px;
         }
 
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        *:focus-visible { outline: 2px solid var(--terracotta); outline-offset: 3px; border-radius: var(--r); }
+
         html { scroll-behavior: smooth; font-size: 16px; }
-        body  { font-family: var(--font-body); background: var(--bianco); color: var(--nero); line-height: 1.7; overflow-x: hidden; }
+        body  { font-family: var(--font-body); background: var(--bianco); color: var(--nero); line-height: 1.55; overflow-x: hidden; }
         img   { display: block; max-width: 100%; }
         a     { color: inherit; text-decoration: none; }
         .real-img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -83,8 +87,7 @@
             height: var(--header-h);
             display: flex; align-items: center; justify-content: space-between;
             padding: 0 40px;
-            background: rgba(254,252,248,0.96);
-            backdrop-filter: blur(8px);
+            background: rgba(254,252,248,0.97);
             border-bottom: 1px solid rgba(184,150,62,0.15);
             transition: box-shadow var(--tr);
         }
@@ -119,15 +122,17 @@
         .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
         .mobile-nav {
-            display: none; position: fixed;
+            display: flex; position: fixed;
             top: var(--header-h); left: 0; right: 0;
             background: var(--bianco);
             padding: 32px 40px;
             border-bottom: 1px solid rgba(184,150,62,0.15);
             z-index: 999; flex-direction: column; gap: 24px;
-            transform: translateY(-8px); opacity: 0; transition: all 0.3s;
+            transform: translateY(-8px); opacity: 0;
+            visibility: hidden; pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s;
         }
-        .mobile-nav.open { display: flex; transform: translateY(0); opacity: 1; }
+        .mobile-nav.open { transform: translateY(0); opacity: 1; visibility: visible; pointer-events: auto; }
         .mobile-nav a { font-size: 1.05rem; color: var(--marrone); }
 
         /* ===== HERO ===== */
@@ -153,7 +158,7 @@
             color: var(--marrone); margin-bottom: 24px;
         }
         .hero h1 em { font-style: italic; color: var(--terracotta); }
-        .hero p { font-size: 1rem; color: var(--grigio-caldo); max-width: 400px; margin-bottom: 40px; line-height: 1.85; }
+        .hero p { font-size: 1rem; color: var(--grigio-caldo); max-width: 400px; margin-bottom: 40px; line-height: 1.65; }
 
         .hero-badge {
             display: inline-flex; align-items: center; gap: 8px;
@@ -194,7 +199,7 @@
         /* ===== SEZIONI COMUNI ===== */
         section { padding: 100px 0; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 40px; }
-        .section-label { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--oro); margin-bottom: 14px; }
+        .section-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.25em; text-transform: uppercase; color: var(--oro); margin-bottom: 14px; }
         .section-title { font-family: var(--font-display); font-size: clamp(2rem, 3vw, 2.8rem); font-weight: 700; color: var(--marrone); line-height: 1.2; }
         .section-title em { font-style: italic; color: var(--terracotta); }
 
@@ -264,7 +269,7 @@
             display: flex; flex-direction: column; justify-content: space-between;
         }
         .card-sv-flat h3 { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--marrone); margin-bottom: 10px; }
-        .card-sv-flat p { font-size: 0.88rem; color: var(--grigio-caldo); line-height: 1.7; }
+        .card-sv-flat p { font-size: 0.88rem; color: var(--grigio-caldo); line-height: 1.6; }
         .card-sv-flat .tag { font-size: 0.68rem; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase; color: var(--oro); margin-bottom: 12px; }
 
         /* ===== CHI SIAMO ===== */
@@ -281,7 +286,7 @@
         .chisiamo-images img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; display: block; min-height: 100px; }
 
         .chisiamo-content .section-title { margin-bottom: 20px; }
-        .chisiamo-content p { font-size: 0.98rem; color: var(--grigio-caldo); line-height: 1.9; margin-bottom: 14px; }
+        .chisiamo-content p { font-size: 0.98rem; color: var(--grigio-caldo); line-height: 1.65; margin-bottom: 14px; }
 
         .press-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
         .press-tag {
@@ -309,7 +314,7 @@
         .wedding-content .section-label { color: var(--oro-light); }
         .wedding-content .section-title { color: white; margin-bottom: 24px; }
         .wedding-content .section-title em { color: var(--oro-light); }
-        .wedding-content p { font-size: 0.95rem; opacity: 0.8; line-height: 1.85; margin-bottom: 12px; }
+        .wedding-content p { font-size: 0.95rem; opacity: 0.8; line-height: 1.65; margin-bottom: 12px; }
         .wedding-features { list-style: none; margin: 20px 0 32px; }
         .wedding-features li {
             font-size: 0.88rem; opacity: 0.85; padding: 8px 0;
@@ -339,7 +344,7 @@
         }
         .card-rec:hover { transform: translateY(-4px); box-shadow: 0 8px 40px rgba(92,61,46,0.12); }
         .stelle { color: var(--oro); font-size: 1.05rem; margin-bottom: 16px; letter-spacing: 2px; }
-        .rec-text { font-size: 0.93rem; color: var(--grigio-caldo); line-height: 1.8; font-style: italic; margin-bottom: 20px; }
+        .rec-text { font-size: 0.93rem; color: var(--grigio-caldo); line-height: 1.65; font-style: italic; margin-bottom: 20px; }
         .rec-footer { display: flex; align-items: center; gap: 12px; }
         .avatar { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; color: white; flex-shrink: 0; }
         .av1 { background: var(--terracotta); }
@@ -357,7 +362,7 @@
         footer { background: var(--marrone); color: rgba(255,255,255,0.82); padding: 80px 0 40px; }
         .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 56px; margin-bottom: 56px; }
         .footer-brand .logo { color: white; margin-bottom: 14px; }
-        .footer-brand p { font-size: 0.88rem; line-height: 1.8; opacity: 0.65; max-width: 260px; }
+        .footer-brand p { font-size: 0.88rem; line-height: 1.6; opacity: 0.65; max-width: 260px; }
         .footer-social { display: flex; gap: 10px; margin-top: 22px; }
         .social-btn {
             width: 36px; height: 36px; border-radius: 50%;
@@ -388,7 +393,7 @@
         .wa-float svg { width: 28px; height: 28px; fill: white; }
 
         /* ===== FADE-IN ===== */
-        .fi { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+        .fi { opacity: 0; transform: translateY(16px); transition: opacity 0.5s ease, transform 0.5s ease; }
         .fi.v { opacity: 1; transform: translateY(0); }
         .fi.d1 { transition-delay: 0.1s; }
         .fi.d2 { transition-delay: 0.2s; }
@@ -453,6 +458,7 @@
     <div class="login-box">
         <div class="login-logo">Central <span>Fabì</span></div>
         <p class="login-sub">Anteprima riservata</p>
+        <label for="login-pwd" class="sr-only">Password</label>
         <input type="password" id="login-pwd" placeholder="Password" autocomplete="current-password">
         <button id="login-btn">Accedi</button>
         <p class="login-error" id="login-err"></p>
@@ -673,8 +679,8 @@
             <p class="section-label">Recensioni</p>
             <h2 class="section-title">Cosa dicono<br>le nostre <em>clienti</em></h2>
         </div>
-        <div class="recensioni-grid">
-            <div class="card-rec fi">
+        <div class="recensioni-grid fi">
+            <div class="card-rec">
                 <div class="stelle">★★★★★</div>
                 <p class="rec-text">"Vado da Central Fabì da anni e non cambierei mai. Capiscono sempre cosa voglio, anche quando non so spiegarlo. Il risultato è sempre perfetto — impossibile tornare indietro."</p>
                 <div class="rec-footer">
@@ -685,7 +691,7 @@
                     </div>
                 </div>
             </div>
-            <div class="card-rec fi d1">
+            <div class="card-rec">
                 <div class="stelle">★★★★★</div>
                 <p class="rec-text">"Ho fatto il balayage qui e sono rimasta senza parole. Colore naturale e luminoso, tecnica impeccabile. Ambiente caldo, team gentilissimo e preparato. Tornerò sempre!"</p>
                 <div class="rec-footer">
@@ -696,7 +702,7 @@
                     </div>
                 </div>
             </div>
-            <div class="card-rec fi d2">
+            <div class="card-rec">
                 <div class="stelle">★★★★★</div>
                 <p class="rec-text">"Ho scelto Central Fabì per l'acconciatura del mio matrimonio ed è stata la scelta migliore. Professionali, puntuali, e il risultato era esattamente quello che sognavo."</p>
                 <div class="rec-footer">
