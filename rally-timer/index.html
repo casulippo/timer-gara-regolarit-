@@ -301,6 +301,56 @@
         .detail-num { font-family: var(--font-display); font-size: 2.4rem; font-weight: 700; color: var(--terracotta); line-height: 1; }
         .detail-label { font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--grigio-caldo); margin-top: 4px; }
 
+        /* ===== PRODOTTI ===== */
+        #prodotti { background: var(--bianco); }
+        .prodotti-intro { text-align: center; max-width: 560px; margin: 0 auto 64px; }
+        .prodotti-intro p { color: var(--grigio-caldo); margin-top: 16px; font-size: 1rem; line-height: 1.65; }
+
+        .prodotti-pillars {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 20px; margin-bottom: 72px;
+        }
+        .pillar {
+            text-align: center; padding: 36px 24px;
+            background: var(--crema); border-radius: 12px;
+            border: 1px solid rgba(184,150,62,0.18);
+        }
+        .pillar-mark {
+            font-family: var(--font-display); font-size: 1.6rem; font-weight: 700;
+            color: var(--oro); line-height: 1; margin-bottom: 16px;
+        }
+        .pillar h3 { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--marrone); margin-bottom: 8px; }
+        .pillar p { font-size: 0.85rem; color: var(--grigio-caldo); line-height: 1.6; }
+
+        .triskell-grid {
+            display: grid; grid-template-columns: 1fr 1fr;
+            gap: 72px; align-items: center;
+        }
+        .triskell-img { border-radius: 12px; overflow: hidden; }
+        .triskell-img img { width: 100%; height: 100%; object-fit: cover; display: block; min-height: 420px; }
+        .triskell-content .section-title { margin-bottom: 20px; }
+        .triskell-content p { font-size: 0.98rem; color: var(--grigio-caldo); line-height: 1.65; margin-bottom: 14px; }
+        .triskell-content p strong { color: var(--marrone); }
+
+        .ingredienti-label {
+            font-size: 0.7rem; font-weight: 700; letter-spacing: 0.2em;
+            text-transform: uppercase; color: var(--oro); margin: 28px 0 12px;
+        }
+        .ingredienti-list { display: flex; flex-wrap: wrap; gap: 8px; }
+        .ingredienti-list span {
+            font-size: 0.78rem; font-weight: 700; color: var(--marrone);
+            background: var(--beige); border: 1px solid rgba(184,150,62,0.25);
+            border-radius: 20px; padding: 5px 14px;
+        }
+
+        @media (max-width: 900px) {
+            .triskell-grid { grid-template-columns: 1fr; gap: 40px; }
+            .triskell-img { min-height: 260px; }
+        }
+        @media (max-width: 600px) {
+            .prodotti-pillars { grid-template-columns: 1fr; }
+        }
+
         /* ===== BLOG ===== */
         #blog { background: var(--crema); }
         .blog-featured {
@@ -514,6 +564,7 @@
     <nav>
         <a href="#lavori">Lavori</a>
         <a href="#servizi-grid">Servizi</a>
+        <a href="#prodotti">Prodotti</a>
         <a href="#chisiamo">Chi Siamo</a>
         <a href="#wedding">Wedding</a>
         <a href="#blog">Blog</a>
@@ -529,6 +580,7 @@
 <div class="mobile-nav" id="mobile-nav">
     <a href="#lavori"       class="mlink">Lavori</a>
     <a href="#servizi-grid" class="mlink">Servizi</a>
+    <a href="#prodotti"     class="mlink">Prodotti</a>
     <a href="#chisiamo"     class="mlink">Chi Siamo</a>
     <a href="#wedding"      class="mlink">Wedding</a>
     <a href="#blog"         class="mlink">Blog</a>
@@ -640,6 +692,56 @@
                     <p class="tag">Nails Corner</p>
                     <h3>Unghie & Nail Art</h3>
                     <p>Il nostro Nails Corner ti offre una cura completa delle unghie — manicure, gel, semipermanente e nail art.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== PRODOTTI ===== -->
+<section id="prodotti">
+    <div class="container">
+        <div class="prodotti-intro fi">
+            <p class="section-label">I nostri prodotti</p>
+            <h2 class="section-title">Bio, vegan e rispettosi<br>dell'<em>ambiente</em></h2>
+            <p>Da Central Fabì troverai solo prodotti Bio di origine naturale vegetale, per garantirti il massimo del rispetto di cute, capelli e ambiente.</p>
+        </div>
+
+        <div class="prodotti-pillars fi">
+            <div class="pillar">
+                <div class="pillar-mark">V</div>
+                <h3>100% Vegan</h3>
+                <p>Nessun ingrediente di origine animale. Non testati su animali.</p>
+            </div>
+            <div class="pillar">
+                <div class="pillar-mark">B</div>
+                <h3>100% Bio</h3>
+                <p>Principi attivi naturali di origine vegetale, a bassissimo impatto ambientale.</p>
+            </div>
+            <div class="pillar">
+                <div class="pillar-mark">N</div>
+                <h3>100% Natural</h3>
+                <p>Senza SLS, parabeni e derivati del petrolio. Packaging riciclabile.</p>
+            </div>
+        </div>
+
+        <div class="triskell-grid fi">
+            <div class="triskell-img">
+                <img src="https://www.centralfabi.com/wp-content/uploads/2019/10/Triskell2.jpg" alt="Linea Triskell prodotti bio per capelli">
+            </div>
+            <div class="triskell-content">
+                <p class="section-label">Il brand che utilizziamo</p>
+                <h2 class="section-title"><em>Triskell</em></h2>
+                <p>Triskell rappresenta la perfetta fusione tra innovazione tecnologica e utilizzo di principi attivi naturali, al servizio della bellezza dei tuoi capelli e del trattamento della cute.</p>
+                <p>Il nome richiama un antico simbolo che rappresenta energia ed equilibrio — gli stessi valori che guidano ogni prodotto della linea.</p>
+                <p>Tutte le linee Care contengono oli essenziali ed estratti vegetali. <strong>Senza SLS, parabeni e derivati del petrolio.</strong></p>
+                <div class="ingredienti-label">Ingredienti chiave</div>
+                <div class="ingredienti-list">
+                    <span>Goji</span><span>Aloe</span><span>Bardana</span>
+                    <span>Camomilla</span><span>Ortica</span><span>Argan</span>
+                    <span>Iperico</span><span>Malva</span><span>Salvia</span>
+                    <span>Calendula</span><span>Limone</span><span>Lavanda</span>
+                    <span>Rosmarino</span>
                 </div>
             </div>
         </div>
